@@ -40,7 +40,7 @@ function Metric({ icon: Icon, label, value, tone = '', note, onEdit, children })
   </article>
 }
 
-function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, totalLabel, totals, children }) {
+function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, totalLabel, totals, renderTotal = money, children }) {
   const scrollRef = useRef(null)
   useEffect(() => {
     const container = scrollRef.current
@@ -63,9 +63,42 @@ function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, tot
       </tr></thead>
       <tbody>{children}</tbody>
       <tfoot><tr><th scope="row">{totalLabel}</th>{totals.map((total, index) =>
-        <td key={months[index]} className={months[index] === month ? 'selected-col' : ''}>{money(total)}</td>)}</tr></tfoot>
+        <td key={months[index]} className={months[index] === month ? 'selected-col' : ''}>{renderTotal(total)}</td>)}</tr></tfoot>
     </table>
   </div>
+}
+
+function BalanceCell({ balance }) {
+  if (balance == null) return <span aria-label="Income not entered">—</span>
+  const status = balance > 0 ? 'Surplus' : balance < 0 ? 'Deficit' : 'Break-even'
+  return <span className={'monthly-balance ' + status.toLowerCase()}>
+    <span>{money(balance)}</span>
+    <small>{status}</small>
+  </span>
+}
+
+function MonthlySummary({ months, month, current, summaries, chooseMonth }) {
+  const rows = [
+    { label: 'Income', field: 'income' },
+    { label: 'Commitment', field: 'committed' },
+    { label: 'Spending', field: 'spendingForecast' },
+  ]
+  return <section className="panel map-panel monthly-summary" aria-labelledby="monthly-summary-title">
+    <div className="panel-heading">
+      <div><div className="section-title"><Grid2X2 size={20} /><h2 id="monthly-summary-title">Monthly summary</h2></div>
+        <p>Spending uses the higher of the budget and recorded amount for each category.</p>
+      </div>
+    </div>
+    <MonthGrid rowHeading="Cash flow" label="Cash flow across six months" months={months} month={month}
+      current={current} chooseMonth={chooseMonth} totalLabel="Balance"
+      totals={summaries.map(entry => entry.balance)} renderTotal={balance => <BalanceCell balance={balance} />}>
+      {rows.map(({ label, field }) => <tr key={field}>
+        <th scope="row">{label}</th>
+        {summaries.map((entry, index) => <td key={months[index]}
+          className={months[index] === month ? 'selected-col' : ''}>{money(entry[field])}</td>)}
+      </tr>)}
+    </MonthGrid>
+  </section>
 }
 
 function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open }) {
@@ -353,6 +386,7 @@ function App() {
             {summary.missedCount > 0 && <span className="missed-count">{summary.missedCount} missed</span>}
           </div>}
 
+          <MonthlySummary months={months} month={month} current={current} summaries={summaries} chooseMonth={setMonth} />
           <CommitmentMap data={data} months={months} month={month} current={current} today={today}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} />
           <Spending data={data} months={months} month={month} current={current}
