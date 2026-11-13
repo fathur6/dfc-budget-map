@@ -216,27 +216,34 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
 export function SignIn({ supabase, close }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
   async function submit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     setBusy(true)
     setError('')
     try {
-      const { error: failure } = await supabase.auth.signInWithPassword({ email: form.get('email'), password: form.get('password') })
+      const email = String(form.get('email')).trim()
+      const { error: failure } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      })
       if (failure) throw failure
-      close()
+      setSent(true)
     } catch (failure) {
-      setError(failure.message || 'Sign-in failed.')
+      setError(failure.message || 'The sign-in link could not be sent.')
     } finally {
       setBusy(false)
     }
   }
   return <Modal title="Sign in to your budget" close={close} busy={busy}>
-    <form className="editor" onSubmit={submit}>
-      <label className="field"><span>Email</span><input name="email" type="email" autoComplete="username" required /></label>
-      <label className="field"><span>Password</span><input name="password" type="password" autoComplete="current-password" required /></label>
+    {sent ? <div className="editor">
+      <p className="form-note" role="status">Check your inbox for the sign-in link. Open it on the device where you want to use the budget.</p>
+      <footer className="modal-actions"><div className="spacer" /><button className="button secondary" onClick={close}>Done</button></footer>
+    </div> : <form className="editor" onSubmit={submit}>
+      <label className="field"><span>Email</span><input name="email" type="email" autoComplete="email" required /></label>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <footer className="modal-actions"><div className="spacer" /><button className="button primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button></footer>
-    </form>
+      <footer className="modal-actions"><div className="spacer" /><button className="button primary" disabled={busy}>{busy ? 'Sending…' : 'Email sign-in link'}</button></footer>
+    </form>}
   </Modal>
 }

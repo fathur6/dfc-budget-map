@@ -23,7 +23,7 @@ The sample budget is fictional. **Start fresh** opens a blank browser budget. **
 ## Vercel and Supabase
 
 1. Create a dedicated Supabase project and apply the SQL migration in [supabase/migrations](supabase/migrations) using the SQL Editor or Supabase CLI.
-2. Create the intended sign-in user in Supabase Authentication. The app uses email/password sign-in and has no public sign-up flow. Disable sign-ups in Supabase for a private deployment.
+2. Create the intended sign-in user in Supabase Authentication and disable public sign-ups. Set the Supabase Auth Site URL to the production app. The app emails sign-in links to pre-created users. Configure SMTP when the built-in mail service cannot deliver to the intended address.
 3. Import this repository into Vercel as a Vite project. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel. Use the project's publishable key or legacy anon key. Keep secret and service-role keys out of the browser bundle.
 4. Deploy, sign in, and import the browser backup if migrating an existing budget. Verify the first save and refresh in the signed-in workspace.
 
