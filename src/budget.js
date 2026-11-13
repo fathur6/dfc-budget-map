@@ -71,7 +71,7 @@ export function categoryMonth(data, category, month) {
 export function monthSummary(data, month, today) {
   const commitments = data.commitments.map(item => installment(data, item, month, today)).filter(Boolean)
   const categories = data.categories.map(item => categoryMonth(data, item, month)).filter(Boolean)
-  const income = data.incomeByMonth[month] ?? data.income
+  const income = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
   const committed = commitments.reduce((total, entry) => total + entry.amount, 0)
   const paid = commitments.filter(entry => entry.status === 'paid')
   const paidTotal = paid.reduce((total, entry) => total + entry.amount, 0)

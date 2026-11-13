@@ -98,7 +98,8 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
       if (type === 'income') {
         next.income = readAmount(get('income'), { optional: true })
         const income = readAmount(get('override'), { optional: true })
-        if (income == null) delete next.incomeByMonth[month]
+        if (form.has('unknown')) next.incomeByMonth[month] = null
+        else if (income == null) delete next.incomeByMonth[month]
         else next.incomeByMonth[month] = income
       }
       if (type === 'commitment' || type === 'category') {
@@ -152,7 +153,8 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
       {type === 'income' && <>
         <MoneyField label="Default monthly take-home income" name="income" value={data.income} required={false} placeholder="Enter income" />
         <MoneyField label={monthLabel(month, 'long') + ' override (optional)'} name="override" value={data.incomeByMonth[month]} required={false} placeholder="Use default" />
-        <p className="muted form-note">The default is used for any month without an override.</p>
+        <label className="check-field"><input type="checkbox" name="unknown" defaultChecked={data.incomeByMonth[month] === null} /> Income is unknown this month</label>
+        <p className="muted form-note">Use the default by leaving the override empty and the box unchecked.</p>
       </>}
       {(type === 'commitment' || type === 'category') && <>
         <label className="field"><span>Name</span><input name="name" defaultValue={item?.name} maxLength={65} required /></label>

@@ -35,7 +35,7 @@ export function readBackup(text) {
   if (file?.format !== 'dfc-budget-map' || file.version !== 1 || !record(budget)
     || (budget.income !== null && !validAmount(budget.income))
     || !record(budget.incomeByMonth)
-    || !Object.entries(budget.incomeByMonth).every(([month, value]) => validMonth(month) && validAmount(value))
+    || !Object.entries(budget.incomeByMonth).every(([month, value]) => validMonth(month) && (value === null || validAmount(value)))
     || !validateItems(budget.commitments, item => validAmount(item.amount) && item.amount > 0
       && Number.isInteger(item.day) && item.day >= 1 && item.day <= 31
       && typeof item.category === 'string' && item.category.length <= 40

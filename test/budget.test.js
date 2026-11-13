@@ -45,6 +45,8 @@ test('uses higher of spending or budget for each category and allows zero income
   assert.equal(result.income, 0)
   assert.equal(result.balance, -658000)
   assert.equal(monthSummary(emptyBudget(), '2026-11', today).balance, null)
+  changed.incomeByMonth['2026-11'] = null
+  assert.equal(monthSummary(changed, '2026-11', today).balance, null)
 })
 
 test('tests the whole term, the user buffer and earlier missed payments once', () => {

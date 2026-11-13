@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from 'react'
+import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, CarFront, ChevronLeft,
@@ -41,6 +41,13 @@ function Metric({ icon: Icon, label, value, tone = '', note, onEdit, children })
 }
 
 function CommitmentMap({ data, month, today, chooseMonth, open }) {
+  const scrollRef = useRef(null)
+  useEffect(() => {
+    const container = scrollRef.current
+    const monthColumn = container.querySelector('thead th:nth-child(3)')
+    const labelColumn = container.querySelector('thead th:first-child')
+    container.scrollLeft = monthColumn.offsetLeft - labelColumn.offsetWidth
+  }, [month])
   const months = rangeOffsets.map(offset => addMonths(month, offset))
   const current = today.slice(0, 7)
   const rows = data.commitments.filter(item => (!item.end || item.end >= months[0]) && item.start <= months.at(-1))
@@ -51,7 +58,7 @@ function CommitmentMap({ data, month, today, chooseMonth, open }) {
         <p>Select a cell to update a payment.</p></div>
       <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
     </div>
-    <div className="table-scroll" tabIndex={0} role="region" aria-label="Commitments across six months">
+    <div className="table-scroll" ref={scrollRef} tabIndex={0} role="region" aria-label="Commitments across six months">
       <table className="map-table">
         <thead><tr>
           <th scope="col">Commitment</th>
@@ -165,6 +172,7 @@ function Simulator({ data, month, today }) {
         <p>Tightest month: {monthLabel(result.month, 'long')} · {money(result.remaining)} after the new payment.</p>
         <p>{result.headroom < 0 ? money(-result.headroom) + ' below your buffer.' : money(result.headroom) + ' above your buffer.'}</p>
       </>}
+      {data.commitments.some(item => item.provisional) && <p>Some commitment schedules are provisional. Verify their amounts and dates before relying on this result.</p>}
       {result.arrears > 0 && <p>Includes {money(result.arrears)} in earlier missed payments in the first month.</p>}
     </div>}
   </section>
