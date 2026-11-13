@@ -69,7 +69,7 @@ function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, tot
 }
 
 function BalanceCell({ balance }) {
-  if (balance == null) return <span aria-label="Income not entered">—</span>
+  if (balance == null) return <span aria-label="Balance unavailable">—</span>
   const status = balance > 0 ? 'Surplus' : balance < 0 ? 'Deficit' : 'Break-even'
   return <span className={'monthly-balance ' + status.toLowerCase()}>
     <span>{money(balance)}</span>
@@ -79,23 +79,23 @@ function BalanceCell({ balance }) {
 
 function MonthlySummary({ months, month, current, summaries, chooseMonth }) {
   const rows = [
-    { label: 'Income', field: 'income' },
-    { label: 'Commitment', field: 'committed' },
-    { label: 'Spending', field: 'spendingForecast' },
+    { label: 'Income', value: entry => entry.income },
+    { label: 'Commitment', value: entry => entry.committed },
+    { label: 'Spending', value: entry => entry.hasSpending ? entry.spent : null },
   ]
   return <section className="panel map-panel monthly-summary" aria-labelledby="monthly-summary-title">
     <div className="panel-heading">
       <div><div className="section-title"><Grid2X2 size={20} /><h2 id="monthly-summary-title">Monthly summary</h2></div>
-        <p>Spending uses the higher of the budget and recorded amount for each category.</p>
+        <p>Balance uses recorded spending. Enter spending for a month to see its balance.</p>
       </div>
     </div>
     <MonthGrid rowHeading="Cash flow" label="Cash flow across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Balance"
-      totals={summaries.map(entry => entry.balance)} renderTotal={balance => <BalanceCell balance={balance} />}>
-      {rows.map(({ label, field }) => <tr key={field}>
+      totals={summaries.map(entry => entry.recordedBalance)} renderTotal={balance => <BalanceCell balance={balance} />}>
+      {rows.map(({ label, value }) => <tr key={label}>
         <th scope="row">{label}</th>
         {summaries.map((entry, index) => <td key={months[index]}
-          className={months[index] === month ? 'selected-col' : ''}>{money(entry[field])}</td>)}
+          className={months[index] === month ? 'selected-col' : ''}>{money(value(entry))}</td>)}
       </tr>)}
     </MonthGrid>
   </section>

@@ -49,6 +49,16 @@ test('uses higher of spending or budget for each category and allows zero income
   assert.equal(monthSummary(changed, '2026-11', today).balance, null)
 })
 
+test('uses only recorded spending for the summary balance and distinguishes zero from missing', () => {
+  const changed = structuredClone(data)
+  assert.equal(monthSummary(changed, '2026-11', today).recordedBalance, 346000)
+  assert.equal(monthSummary(changed, '2026-12', today).recordedBalance, null)
+  changed.spending['food:2026-12'] = { spent: 0 }
+  assert.equal(monthSummary(changed, '2026-12', today).recordedBalance, 537000)
+  changed.incomeByMonth['2026-12'] = null
+  assert.equal(monthSummary(changed, '2026-12', today).recordedBalance, null)
+})
+
 test('includes a one-off payment outside the schedule in only its selected month', () => {
   const changed = structuredClone(data)
   const device = changed.commitments.find(item => item.id === 'plan')
