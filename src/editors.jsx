@@ -151,10 +151,10 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
         }
       }
       if (type === 'spending') {
-        const planned = readAmount(get('planned'), { optional: true })
+        const planned = data.spending[key]?.planned
         const spent = readAmount(get('spent'), { optional: true })
         if (planned == null && spent == null) delete next.spending[key]
-        else next.spending[key] = { planned, spent }
+        else next.spending[key] = { ...(planned != null && { planned }), spent }
       }
       await save(next)
     } catch (failure) {
@@ -187,7 +187,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
           <MonthField label="First month" name="start" value={item?.start ?? month} />
           <MonthField label="Last month (optional)" name="end" value={item?.end} required={false} />
         </div>
-        {item && <p className="muted form-note">Changes to defaults apply to all months that use them. To change one month, open its cell or spending entry.</p>}
+        {item && <p className="muted form-note">Changes to defaults apply to all months that use them. To record a monthly amount, open its cell.</p>}
       </>}
       {type === 'payment' && <>
         <p className="muted form-note">{monthLabel(month, 'long')} · due {new Intl.DateTimeFormat('en-MY', {
@@ -213,8 +213,8 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
       </>}
       {type === 'spending' && <>
         <p className="muted form-note">{monthLabel(month, 'long')}</p>
-        <MoneyField label="Budget override (optional)" name="planned" value={data.spending[key]?.planned} required={false} placeholder={inputMoney(item.planned)} />
         <MoneyField label="Total spent this month" name="spent" value={data.spending[key]?.spent} required={false} placeholder="Enter monthly total" />
+        {data.spending[key]?.spent != null && <p className="muted form-note">Clear the amount and save to remove this month’s total.</p>}
       </>}
       {type === 'import' && <>
         <p className="muted form-note">Import replaces the budget in this workspace. Export the existing budget first if you want to keep a copy.</p>

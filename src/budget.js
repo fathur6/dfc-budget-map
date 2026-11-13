@@ -81,6 +81,7 @@ export function monthSummary(data, month, today) {
   const spendingForecast = categories.reduce((total, entry) => total + Math.max(entry.planned, entry.spent ?? 0), 0)
   return {
     income, committed, paidTotal, planned, spent, spendingForecast,
+    hasSpending: categories.some(entry => entry.spent != null),
     count: commitments.length, paidCount: paid.length, missedCount: missed.length,
     outstanding: committed - paidTotal,
     balance: income == null ? null : income - committed - spendingForecast,

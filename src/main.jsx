@@ -40,7 +40,7 @@ function Metric({ icon: Icon, label, value, tone = '', note, onEdit, children })
   </article>
 }
 
-function CommitmentMap({ data, month, today, chooseMonth, open }) {
+function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, totalLabel, totals, children }) {
   const scrollRef = useRef(null)
   useEffect(() => {
     const container = scrollRef.current
@@ -48,62 +48,65 @@ function CommitmentMap({ data, month, today, chooseMonth, open }) {
     const labelColumn = container.querySelector('thead th:first-child')
     container.scrollLeft = monthColumn.offsetLeft - labelColumn.offsetWidth
   }, [month])
-  const months = rangeOffsets.map(offset => addMonths(month, offset))
-  const current = today.slice(0, 7)
+  return <div className="table-scroll" ref={scrollRef} tabIndex={0} role="region" aria-label={label}>
+    <table className="map-table">
+      <thead><tr>
+        <th scope="col">{rowHeading}</th>
+        {months.map(value => <th key={value} scope="col" className={value === month ? 'selected-col' : ''}>
+          <button className="month-column" aria-pressed={value === month} onClick={() => chooseMonth(value)}
+            disabled={value < '2000-01' || value > '2100-12'}>
+            <strong>{monthLabel(value)}</strong>
+            {value === current && <span>Current</span>}
+            {value === addMonths(current, 1) && <span>Next</span>}
+          </button>
+        </th>)}
+      </tr></thead>
+      <tbody>{children}</tbody>
+      <tfoot><tr><th scope="row">{totalLabel}</th>{totals.map((total, index) =>
+        <td key={months[index]} className={months[index] === month ? 'selected-col' : ''}>{money(total)}</td>)}</tr></tfoot>
+    </table>
+  </div>
+}
+
+function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open }) {
   const rows = data.commitments.filter(item => months.some(value =>
     active(item, value) || data.payments[paymentKey(item.id, value)]?.oneOff
   ))
-  const summaries = months.map(month => monthSummary(data, month, today))
   return <section id="commitments" className="panel map-panel" aria-labelledby="map-title">
     <div className="panel-heading">
       <div><div className="section-title"><Layers3 size={20} /><h2 id="map-title">Commitment map</h2></div>
         <p>Select a cell to add or update a payment.</p></div>
       <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
     </div>
-    <div className="table-scroll" ref={scrollRef} tabIndex={0} role="region" aria-label="Commitments across six months">
-      <table className="map-table">
-        <thead><tr>
-          <th scope="col">Commitment</th>
-          {months.map(value => <th key={value} scope="col" className={value === month ? 'selected-col' : ''}>
-            <button className="month-column" aria-pressed={value === month} onClick={() => chooseMonth(value)}>
-              <strong>{monthLabel(value)}</strong>
-              {value === current && <span>Current</span>}
-              {value === addMonths(current, 1) && <span>Next</span>}
-            </button>
-          </th>)}
-        </tr></thead>
-        <tbody>
-          {rows.map(item => {
-            const Icon = icons[item.category] ?? CreditCard
-            return <tr key={item.id}>
-              <th scope="row"><button className="row-label" onClick={() => open({ type: 'commitment', item })} aria-label={'Edit ' + item.name}>
-                <span className="row-icon"><Icon size={16} /></span><span><strong>{item.name}</strong><small>{item.provisional ? 'Verify schedule' : item.category} · due {item.day}</small></span>
-              </button></th>
-              {months.map(value => {
-                const entry = installment(data, item, value, today)
-                const status = entry && statuses[entry.status]
-                const StatusIcon = status?.icon
-                return <td key={value} className={value === month ? 'selected-col' : ''}>
-                  {entry ? <button className={'tile ' + entry.status}
-                    aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount)}
-                    onClick={() => open({ type: 'payment', item, month: value })}>
-                    <StatusIcon size={14} strokeWidth={2.3} /><span>{money(entry.amount)}</span>
-                  </button> : value >= '2000-01' && value <= '2100-12'
-                    ? <button type="button" className="inactive-tile"
-                      aria-label={'Add payment for ' + item.name + ', ' + monthLabel(value, 'long')}
-                      title="Add payment for this month"
-                      onClick={() => open({ type: 'payment', item, month: value })}>—</button>
-                    : <span className="inactive-tile">—</span>}
-                </td>
-              })}
-            </tr>
+    <MonthGrid rowHeading="Commitment" label="Commitments across six months" months={months} month={month}
+      current={current} chooseMonth={chooseMonth} totalLabel="Monthly total" totals={summaries.map(entry => entry.committed)}>
+      {rows.map(item => {
+        const Icon = icons[item.category] ?? CreditCard
+        return <tr key={item.id}>
+          <th scope="row"><button className="row-label" onClick={() => open({ type: 'commitment', item })} aria-label={'Edit ' + item.name}>
+            <span className="row-icon"><Icon size={16} /></span><span><strong>{item.name}</strong><small>{item.provisional ? 'Verify schedule' : item.category} · due {item.day}</small></span>
+          </button></th>
+          {months.map(value => {
+            const entry = installment(data, item, value, today)
+            const status = entry && statuses[entry.status]
+            const StatusIcon = status?.icon
+            return <td key={value} className={value === month ? 'selected-col' : ''}>
+              {entry ? <button className={'tile ' + entry.status}
+                aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount)}
+                onClick={() => open({ type: 'payment', item, month: value })}>
+                <StatusIcon size={14} strokeWidth={2.3} /><span>{money(entry.amount)}</span>
+              </button> : value >= '2000-01' && value <= '2100-12'
+                ? <button type="button" className="inactive-tile"
+                  aria-label={'Add payment for ' + item.name + ', ' + monthLabel(value, 'long')}
+                  title="Add payment for this month"
+                  onClick={() => open({ type: 'payment', item, month: value })}>—</button>
+                : <span className="inactive-tile">—</span>}
+            </td>
           })}
-          {!rows.length && <tr><td colSpan={7} className="empty-row">No commitments in this period.</td></tr>}
-        </tbody>
-        <tfoot><tr><th scope="row">Monthly total</th>{summaries.map((entry, index) =>
-          <td key={months[index]} className={months[index] === month ? 'selected-col' : ''}>{money(entry.committed)}</td>)}</tr></tfoot>
-      </table>
-    </div>
+        </tr>
+      })}
+      {!rows.length && <tr><td colSpan={months.length + 1} className="empty-row">No commitments in this period.</td></tr>}
+    </MonthGrid>
     <div className="map-footer">
       <div className="legend">{Object.entries(statuses).map(([key, { label }]) =>
         <span key={key}><i className={key} />{label}</span>)}</div>
@@ -112,29 +115,39 @@ function CommitmentMap({ data, month, today, chooseMonth, open }) {
   </section>
 }
 
-function Spending({ data, month, open }) {
-  const categories = data.categories.map(item => ({ item, entry: categoryMonth(data, item, month) })).filter(row => row.entry)
-  return <section id="spending" className="panel" aria-labelledby="spending-title">
+function Spending({ data, months, month, current, summaries, chooseMonth, open }) {
+  const categories = data.categories.filter(item => months.some(value => active(item, value)))
+  return <section id="spending" className="panel map-panel" aria-labelledby="spending-title">
     <div className="panel-heading">
       <div><div className="section-title"><Wallet size={19} /><h2 id="spending-title">Monthly spending</h2></div>
-        <p>{monthLabel(month, 'long')} · budget and recorded totals</p></div>
-      <button className="icon-button add-category" onClick={() => open({ type: 'category' })} aria-label="Add spending category" title="Add spending category"><Plus size={19} /></button>
+        <p>Record one spending total per category each month.</p></div>
+      <button className="button secondary" onClick={() => open({ type: 'category' })}><Plus size={17} /> Add category</button>
     </div>
-    <div className="spending-list">
-      {categories.map(({ item, entry: { planned, spent } }) => {
-        const percent = planned ? (spent ?? 0) * 100 / planned : spent ? 100 : 0
-        return <div className="spend-row" key={item.id}>
-          <div className="spend-label"><strong>{item.name}</strong>
-            <button className="icon-button" onClick={() => open({ type: 'category', item })} aria-label={'Edit category ' + item.name}><Pencil size={13} /></button>
-          </div>
-          <button className="spend-entry" onClick={() => open({ type: 'spending', item })} aria-label={'Update monthly spending for ' + item.name}>
-            <span className={'progress' + (spent > planned ? ' over' : '')}><span style={{ width: Math.min(100, percent) + '%' }} /></span>
-            <span className="spend-values"><strong>{spent == null ? 'Enter spending' : money(spent)}</strong><span> / {money(planned)}</span></span>
-          </button>
-        </div>
-      })}
-      {!categories.length && <p className="empty-row">Add a category to plan and record monthly spending.</p>}
-    </div>
+    <MonthGrid rowHeading="Category" label="Spending across six months" months={months} month={month}
+      current={current} chooseMonth={chooseMonth} totalLabel="Total recorded"
+      totals={summaries.map(entry => entry.hasSpending ? entry.spent : null)}>
+      {categories.map(item => <tr key={item.id}>
+        <th scope="row"><button className="row-label" onClick={() => open({ type: 'category', item })}
+          aria-label={'Edit category ' + item.name}>
+          <span className="row-icon"><Wallet size={16} /></span><strong>{item.name}</strong>
+        </button></th>
+        {months.map(value => {
+          const entry = categoryMonth(data, item, value)
+          const recorded = entry?.spent != null
+          const label = item.name + ', ' + monthLabel(value, 'long')
+          return <td key={value} className={value === month ? 'selected-col' : ''}>
+            {entry && value >= '2000-01' && value <= '2100-12'
+              ? <button type="button" className={recorded ? 'tile recorded-spend' : 'inactive-tile'}
+                aria-label={recorded ? 'Edit spending for ' + label + ', ' + money(entry.spent) : 'Add spending for ' + label}
+                onClick={() => open({ type: 'spending', item, month: value })}>
+                {money(entry.spent)}
+              </button>
+              : <span className="inactive-tile" title="Category inactive this month">—</span>}
+          </td>
+        })}
+      </tr>)}
+      {!categories.length && <tr><td colSpan={months.length + 1} className="empty-row">Add a category to record monthly spending.</td></tr>}
+    </MonthGrid>
   </section>
 }
 
@@ -158,7 +171,7 @@ function Simulator({ data, month, today }) {
     setError('')
     setScenario({ start, duration, amount, buffer })
   }
-  return <section id="simulator" className="panel" aria-labelledby="sim-title">
+  return <section id="simulator" className="panel map-panel simulator-panel" aria-labelledby="sim-title">
     <div className="panel-heading">
       <div><div className="section-title"><FlaskConical size={19} /><h2 id="sim-title">Commitment simulator</h2></div>
         <p>See whether a new payment fits across its full term.</p></div>
@@ -251,7 +264,9 @@ function App() {
   }
 
   const data = snapshot?.budget
-  const summary = data && monthSummary(data, month, today)
+  const months = rangeOffsets.map(offset => addMonths(month, offset))
+  const summaries = data && months.map(value => monthSummary(data, value, today))
+  const summary = summaries?.[1]
   const arrears = data && month >= current ? outstandingBefore(data, month, today) : 0
   const balance = summary?.balance ?? null
   const paidPercent = summary?.count ? Math.round(summary.paidCount * 100 / summary.count) : 0
@@ -338,11 +353,11 @@ function App() {
             {summary.missedCount > 0 && <span className="missed-count">{summary.missedCount} missed</span>}
           </div>}
 
-          <CommitmentMap data={data} month={month} today={today} chooseMonth={setMonth} open={setEditor} />
-          <div className="below-map">
-            <Spending data={data} month={month} open={setEditor} />
-            <Simulator key={month} data={data} month={month} today={today} />
-          </div>
+          <CommitmentMap data={data} months={months} month={month} current={current} today={today}
+            summaries={summaries} chooseMonth={setMonth} open={setEditor} />
+          <Spending data={data} months={months} month={month} current={current}
+            summaries={summaries} chooseMonth={setMonth} open={setEditor} />
+          <Simulator key={month} data={data} month={month} today={today} />
         </>}
       </div>
     </main>
