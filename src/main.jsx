@@ -178,11 +178,12 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
 }
 
 function Spending({ data, months, month, current, summaries, chooseMonth, open }) {
+  const [dragged, setDragged] = useState(null)
   const categories = data.categories.filter(item => months.some(value => active(item, value)))
   return <section id="spending" className="panel map-panel" aria-labelledby="spending-title">
     <div className="panel-heading">
       <div><div className="section-title"><Wallet size={19} /><h2 id="spending-title">Monthly spending</h2></div>
-        <p>Record one spending total per category each month.</p></div>
+        <p>Record one total per category each month. Drag an amount to copy it within the same row.</p></div>
       <button className="button secondary" onClick={() => open({ type: 'category' })}><Plus size={17} /> Add category</button>
     </div>
     <MonthGrid rowHeading="Category" label="Spending across six months" months={months} month={month}
@@ -197,10 +198,28 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open }
           const entry = categoryMonth(data, item, value)
           const recorded = entry?.spent != null
           const label = item.name + ', ' + monthLabel(value, 'long')
+          const editable = entry && value >= '2000-01' && value <= '2100-12'
+          const canDrop = editable && dragged?.id === item.id && dragged.month !== value
           return <td key={value} className={value === month ? 'selected-col' : ''}>
-            {entry && value >= '2000-01' && value <= '2100-12'
-              ? <button type="button" className={recorded ? 'tile recorded-spend' : 'inactive-tile'}
+            {editable
+              ? <button type="button" className={(recorded ? 'tile recorded-spend' : 'inactive-tile') + (canDrop ? ' spending-drop-target' : '')}
                 aria-label={recorded ? 'Edit spending for ' + label + ', ' + money(entry.spent) : 'Add spending for ' + label}
+                draggable={recorded}
+                onDragStart={recorded ? event => {
+                  event.dataTransfer.effectAllowed = 'copy'
+                  event.dataTransfer.setData('text/plain', 'Monthly spending')
+                  setDragged({ id: item.id, month: value })
+                } : undefined}
+                onDragEnd={() => setDragged(null)}
+                onDragOver={canDrop ? event => {
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'copy'
+                } : undefined}
+                onDrop={canDrop ? event => {
+                  event.preventDefault()
+                  open({ type: 'copy-spending', item, sourceMonth: dragged.month, month: value })
+                  setDragged(null)
+                } : undefined}
                 onClick={() => open({ type: 'spending', item, month: value })}>
                 {money(entry.spent)}
               </button>
@@ -453,8 +472,8 @@ function App() {
     {editor?.type === 'commitment-breakdown' && data && <CommitmentBreakdown month={editor.month}
       summary={monthSummary(data, editor.month, today)} close={() => setEditor(null)} />}
     {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown'].includes(editor.type) && snapshot && <Editor
-      key={identity} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
-      today={today} save={save} reload={refresh} />}
+      key={identity + ':' + editor.type} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
+      today={today} save={save} reload={refresh} open={setEditor} />}
     {notice && <div className="toast" role="status"><ShieldCheck size={18} /> {notice}</div>}
   </div>
 }

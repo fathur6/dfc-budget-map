@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, Clock3, X } from 'lucide-react'
-import { active, dueDate, inputMoney, installment, monthLabel, parseMoney, paymentKey } from './budget.js'
+import { active, categoryMonth, dueDate, inputMoney, installment, money, monthLabel, parseMoney, paymentKey } from './budget.js'
 import { readBackup } from './backup.js'
 
 export const statuses = {
@@ -63,13 +63,18 @@ function removeEntries(map, id) {
   return Object.fromEntries(Object.entries(map).filter(([key]) => !key.startsWith(id + ':')))
 }
 
-export function Editor({ editor, close, snapshot, month, today, save, reload }) {
+export function Editor({ editor, close, snapshot, month, today, save, reload, open }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const { type, item } = editor
   const data = snapshot.budget
   const key = item && paymentKey(item.id, month)
+  const copying = type === 'copy-spending'
+  const [targetMonth, setTargetMonth] = useState(editor.month ?? '')
+  const sourceAmount = copying ? categoryMonth(data, item, editor.sourceMonth)?.spent : null
+  const targetAmount = copying && targetMonth && targetMonth !== editor.sourceMonth
+    ? categoryMonth(data, item, targetMonth)?.spent : null
   const payment = data.payments[key]
   const entry = type === 'payment' ? installment(data, item, month, today) : null
   const oneOff = type === 'payment' && (!active(item, month) || payment?.oneOff === true)
@@ -83,7 +88,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
     income: 'Set monthly income', commitment: item ? 'Edit commitment' : 'Add commitment',
     payment: entry ? item?.name : 'Add payment for ' + item?.name,
     category: item ? 'Edit spending category' : 'Add spending category',
-    spending: item?.name, import: 'Import a budget', reset: 'Start a fresh budget',
+    spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
   }
   async function submit(event) {
     event.preventDefault()
@@ -157,11 +162,16 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
           }
         }
       }
-      if (type === 'spending') {
-        const planned = data.spending[key]?.planned
-        const spent = readAmount(get('spent'), { optional: true })
-        if (planned == null && spent == null) delete next.spending[key]
-        else next.spending[key] = { ...(planned != null && { planned }), spent }
+      if (type === 'spending' || copying) {
+        const destination = copying ? readMonth(editor.month || get('targetMonth')) : month
+        if (copying && (sourceAmount == null || destination === editor.sourceMonth || !active(item, destination))) {
+          throw new Error('Choose another active month for this category.')
+        }
+        const destinationKey = paymentKey(item.id, destination)
+        const planned = data.spending[destinationKey]?.planned
+        const spent = copying ? sourceAmount : readAmount(get('spent'), { optional: true })
+        if (planned == null && spent == null) delete next.spending[destinationKey]
+        else next.spending[destinationKey] = { ...(planned != null && { planned }), spent }
       }
       await save(next)
     } catch (failure) {
@@ -229,6 +239,15 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
         <MoneyField label="Total spent this month" name="spent" value={data.spending[key]?.spent} required={false} placeholder="Enter monthly total" />
         {data.spending[key]?.spent != null && <p className="muted form-note">Clear the amount and save to remove this month’s total.</p>}
       </>}
+      {copying && <>
+        <p className="form-note">Copy <strong>{money(sourceAmount)}</strong> for <strong>{item.name}</strong> from {monthLabel(editor.sourceMonth, 'long')}?</p>
+        {editor.month ? <p className="form-note">Destination <strong>{monthLabel(editor.month, 'long')}</strong></p>
+          : <label className="field"><span>Copy to month</span>
+            <input type="month" name="targetMonth" min={item.start} max={item.end || '2100-12'}
+              pattern={monthPattern} placeholder="YYYY-MM" required onInput={event => setTargetMonth(event.currentTarget.value)} />
+          </label>}
+        {targetAmount != null && <p className="form-note">This will replace the destination amount of <strong>{money(targetAmount)}</strong>.</p>}
+      </>}
       {type === 'import' && <>
         <p className="muted form-note">Import replaces the budget in this workspace. Export the existing budget first if you want to keep a copy.</p>
         <label className="field"><span>Budget backup file</span><input name="backup" type="file" accept="application/json,.json" required /></label>
@@ -237,13 +256,16 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
       {error && <div className="form-error" role="alert">{error} <button type="button" className="link-button" onClick={reload}>Reload saved budget</button></div>}
       {confirm && <p className="form-error" role="status">Delete this {type} and all its monthly entries?</p>}
       <footer className="modal-actions">
+        {type === 'spending' && data.spending[key]?.spent != null &&
+          <button type="button" className="button secondary" disabled={busy}
+            onClick={() => open({ type: 'copy-spending', item, sourceMonth: month })}>Copy to month</button>}
         {type === 'payment' && payment?.oneOff && <button type="submit" value="remove-payment" formNoValidate disabled={busy} className="button danger">Remove monthly entry</button>}
         {item && ['commitment', 'category'].includes(type) && (confirm
           ? <button type="submit" value="delete" formNoValidate disabled={busy} className="button danger">Confirm delete</button>
           : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}
         <div className="spacer" />
         <button type="button" className="button secondary" disabled={busy} onClick={close}>Cancel</button>
-        <button type="submit" className="button primary" disabled={busy}>{busy ? 'Saving…' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
+        <button type="submit" className="button primary" disabled={busy}>{busy ? 'Saving…' : copying ? 'Copy value' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
       </footer>
     </form>
   </Modal>
