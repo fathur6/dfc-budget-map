@@ -57,6 +57,7 @@ export function installment(data, commitment, month, today) {
   return {
     due,
     amount: override?.amount ?? commitment.amount,
+    ...(override?.paymentMonth && { paymentMonth: override.paymentMonth }),
     status: override?.status === 'paid' ? 'paid'
       : override?.status === 'missed' || (!commitment.provisional && due < today) ? 'missed' : 'scheduled',
   }
@@ -69,24 +70,44 @@ export function categoryMonth(data, category, month) {
 }
 
 export function monthSummary(data, month, today) {
-  const commitments = data.commitments.map(item => installment(data, item, month, today)).filter(Boolean)
+  const original = data.commitments.flatMap(item => {
+    const entry = installment(data, item, month, today)
+    return entry ? [{ ...entry, id: item.id, name: item.name, dueMonth: month }] : []
+  })
+  const movedOut = original.filter(entry => entry.paymentMonth && entry.paymentMonth !== month)
+  const movedIn = movedInstallments(data, today).filter(entry => entry.paymentMonth === month)
+  const commitments = [...original.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
   const categories = data.categories.map(item => categoryMonth(data, item, month)).filter(Boolean)
   const income = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
   const committed = commitments.reduce((total, entry) => total + entry.amount, 0)
   const paid = commitments.filter(entry => entry.status === 'paid')
   const paidTotal = paid.reduce((total, entry) => total + entry.amount, 0)
-  const missed = commitments.filter(entry => entry.status === 'missed')
+  const missed = commitments.filter(entry => entry.paymentMonth && entry.paymentMonth !== entry.dueMonth
+    ? entry.status !== 'paid' && entry.paymentMonth < today.slice(0, 7)
+    : entry.status === 'missed')
   const planned = categories.reduce((total, entry) => total + entry.planned, 0)
   const spent = categories.reduce((total, entry) => total + (entry.spent ?? 0), 0)
   const hasSpending = categories.some(entry => entry.spent != null)
   const spendingForecast = categories.reduce((total, entry) => total + Math.max(entry.planned, entry.spent ?? 0), 0)
   return {
-    income, committed, paidTotal, planned, spent, spendingForecast, hasSpending,
+    income, committed, paidTotal, planned, spent, spendingForecast, hasSpending, movedIn, movedOut,
+    scheduledCommitment: original.reduce((total, entry) => total + entry.amount, 0),
     count: commitments.length, paidCount: paid.length, missedCount: missed.length,
     outstanding: committed - paidTotal,
     balance: income == null ? null : income - committed - spendingForecast,
     recordedBalance: income == null || !hasSpending ? null : income - committed - spent,
   }
+}
+
+function movedInstallments(data, today) {
+  const commitments = new Map(data.commitments.map(item => [item.id, item]))
+  return Object.entries(data.payments).flatMap(([key, payment]) => {
+    const [id, dueMonth] = key.split(':')
+    if (!payment.paymentMonth || payment.paymentMonth === dueMonth) return []
+    const item = commitments.get(id)
+    const entry = item && installment(data, item, dueMonth, today)
+    return entry ? [{ ...entry, id, name: item.name, dueMonth }] : []
+  })
 }
 
 export function outstandingBefore(data, start, today) {
@@ -97,7 +118,7 @@ export function outstandingBefore(data, start, today) {
     const last = item.end && item.end < current ? item.end : current
     for (let month = item.start; month < start && month <= last; month = addMonths(month, 1)) {
       const entry = installment(data, item, month, today)
-      if (entry.status === 'missed') total += entry.amount
+      if (entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
     }
   }
   for (const [key, payment] of Object.entries(data.payments)) {
@@ -106,7 +127,10 @@ export function outstandingBefore(data, start, today) {
     const item = commitments.get(id)
     if (!item || active(item, month) || month >= start || month > current) continue
     const entry = installment(data, item, month, today)
-    if (entry.status === 'missed') total += entry.amount
+    if (entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
+  }
+  for (const entry of movedInstallments(data, today)) {
+    if (entry.status !== 'paid' && entry.paymentMonth < start && entry.paymentMonth < current) total += entry.amount
   }
   return total
 }

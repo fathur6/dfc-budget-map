@@ -87,6 +87,51 @@ test('tests the whole term, the user buffer and earlier missed payments once', (
   assert.equal(simulate(emptyBudget(), { start: '2026-11', duration: 1, amount: 40000, buffer: 0 }, today).missing, '2026-11')
 })
 
+test('allocates a deferred installment to its planned month and replaces it with the actual month', () => {
+  const changed = structuredClone(data)
+  const dueMonth = '2026-10'
+  const plannedMonth = '2026-12'
+  const key = 'electric:' + dueMonth
+  changed.payments[key] = { paymentMonth: plannedMonth }
+  const origin = monthSummary(changed, dueMonth, today)
+  const target = monthSummary(changed, plannedMonth, today)
+  assert.equal(origin.scheduledCommitment, 313000)
+  assert.equal(origin.committed, 291000)
+  assert.equal(origin.movedOut[0].paymentMonth, plannedMonth)
+  assert.equal(target.committed, 335000)
+  assert.equal(target.movedIn[0].dueMonth, dueMonth)
+  assert.equal(outstandingBefore(changed, plannedMonth, today), 0)
+  assert.equal(simulate(changed, { start: plannedMonth, duration: 1, amount: 10000, buffer: 0 }, today).remaining, 200000)
+  assert.equal(outstandingBefore(changed, '2027-01', '2026-12-31'),
+    outstandingBefore(data, '2027-01', '2026-12-31') - 22000)
+  assert.equal(outstandingBefore(changed, '2027-01', '2027-01-02'),
+    outstandingBefore(data, '2027-01', '2027-01-02'))
+
+  changed.payments[key] = { status: 'paid', paymentMonth: '2027-01', amount: 22000 }
+  assert.equal(monthSummary(changed, plannedMonth, today).committed, 313000)
+  assert.equal(monthSummary(changed, '2027-01', today).committed, 303500)
+  assert.equal(monthSummary(changed, '2027-01', today).paidTotal, 22000)
+  assert.equal(outstandingBefore(changed, '2027-02', '2027-01-02'),
+    outstandingBefore(data, '2027-02', '2027-01-02') - 22000)
+})
+
+test('charges an early payment to the earlier month and keeps its original installment in the schedule', () => {
+  const changed = structuredClone(data)
+  changed.payments['plan:2026-12'] = { status: 'paid', amount: 31500, paymentMonth: '2026-11' }
+  const early = monthSummary(changed, '2026-11', today)
+  const due = monthSummary(changed, '2026-12', today)
+  assert.equal(early.committed, 344500)
+  assert.equal(early.paidTotal, 274500)
+  assert.equal(early.recordedBalance, 314500)
+  assert.equal(due.scheduledCommitment, 313000)
+  assert.equal(due.committed, 281500)
+  assert.equal(installment(changed, changed.commitments[4], '2026-12', today).status, 'paid')
+  const backup = budget => JSON.stringify({ format: 'dfc-budget-map', version: 1, budget })
+  assert.deepEqual(readBackup(backup(changed)), changed)
+  changed.payments['plan:2026-12'].paymentMonth = '2026-13'
+  assert.throws(() => readBackup(backup(changed)), /valid DFC/)
+})
+
 test('backups round-trip and reject invalid money and orphan monthly records', () => {
   const serialize = budget => JSON.stringify({ format: 'dfc-budget-map', version: 1, budget })
   assert.deepEqual(readBackup(serialize(data)), data)

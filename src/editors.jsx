@@ -33,9 +33,9 @@ export function MoneyField({ label, name, value, required = true, placeholder = 
 
 export const categories = ['Housing', 'Transport', 'Utilities', 'Financing', 'Insurance', 'Subscriptions', 'Other']
 const monthPattern = '(20[0-9]{2}|2100)-(0[1-9]|1[0-2])'
-export function MonthField({ label, name, value, required = true, min = '2000-01' }) {
+export function MonthField({ label, name, value, required = true, min = '2000-01', max = '2100-12' }) {
   return <label className="field"><span>{label}</span>
-    <input type="month" name={name} defaultValue={value} min={min} max="2100-12" pattern={monthPattern}
+    <input type="month" name={name} defaultValue={value} min={min} max={max} pattern={monthPattern}
       placeholder="YYYY-MM" required={required} />
   </label>
 }
@@ -72,8 +72,9 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
   const key = item && paymentKey(item.id, month)
   const payment = data.payments[key]
   const entry = type === 'payment' ? installment(data, item, month, today) : null
-  const oneOff = type === 'payment' && (!active(item, month) || payment?.oneOff)
+  const oneOff = type === 'payment' && (!active(item, month) || payment?.oneOff === true)
   const [paymentDay, setPaymentDay] = useState(payment?.day ?? item?.day ?? 1)
+  const [paymentStatus, setPaymentStatus] = useState(payment?.status ?? 'auto')
   const day = Number(paymentDay)
   const validDay = Number.isInteger(day) && day >= 1 && day <= 31
   const due = type === 'payment' ? dueDate(month, validDay ? day : item.day) : null
@@ -139,14 +140,20 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
           delete next.payments[key]
         } else {
           const amount = readAmount(get('amount'), { optional: !oneOff })
+          const paymentMonth = status === 'missed' ? '' : readMonth(get('paymentMonth'), true)
+          if (status === 'paid' && (paymentMonth || month) > today.slice(0, 7)
+            && !(payment?.status === 'paid' && !payment?.paymentMonth && !paymentMonth)) {
+            throw new Error('Choose the month the payment was made, or select Planned for a future payment.')
+          }
           const day = get('day') && validDay ? Number(get('day')) : null
           const keepAmount = oneOff || status === 'paid' || (amount != null && amount !== item.amount)
-          if (!keepAmount && day == null && status === 'auto') delete next.payments[key]
+          if (!keepAmount && day == null && status === 'auto' && !paymentMonth) delete next.payments[key]
           else next.payments[key] = {
             ...(oneOff && { oneOff: true }),
             ...(status !== 'auto' && { status }),
             ...(keepAmount && { amount: amount ?? item.amount }),
             ...(day != null && { day }),
+            ...(paymentMonth && { paymentMonth }),
           }
         }
       }
@@ -193,14 +200,20 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
         <p className="muted form-note">{monthLabel(month, 'long')} · due {new Intl.DateTimeFormat('en-MY', {
           day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
         }).format(new Date(due + 'T00:00:00Z'))}</p>
-        {oneOff && <p className="muted form-note">This entry applies only to {monthLabel(month, 'long')}.</p>}
+        {oneOff && <p className="muted form-note">One-off instalment originally due in {monthLabel(month, 'long')}.</p>}
         <fieldset className="status-picker"><legend>Payment status</legend>
-          {[['paid', 'Paid', Check], ['auto', expired ? 'Automatic (missed)' : 'Scheduled', Clock3], ['missed', 'Missed', AlertTriangle]]
+          {[['paid', 'Paid', Check], ['auto', 'Planned', Clock3], ['missed', 'Missed', AlertTriangle]]
             .map(([value, label, Icon]) => <label className={value === 'auto' ? 'scheduled' : value} key={value}>
-              <input type="radio" name="status" value={value} defaultChecked={(payment?.status ?? 'auto') === value} />
+              <input type="radio" name="status" value={value} checked={paymentStatus === value} onChange={() => setPaymentStatus(value)} />
               <span><Icon size={16} />{label}</span>
             </label>)}
         </fieldset>
+        {paymentStatus !== 'missed' && <>
+          <MonthField label={paymentStatus === 'paid' ? 'Month paid (optional)' : 'Planned payment month (optional)'}
+            name="paymentMonth" value={payment?.paymentMonth} required={false}
+            max={paymentStatus === 'paid' ? today.slice(0, 7) : undefined} />
+          <p className="muted form-note">Leave blank to use the original month. Choose a different month to charge its budget.</p>
+        </>}
         <div className="form-grid">
           <MoneyField label={oneOff ? 'Amount for this month' : 'Amount for this month (optional)'} name="amount" value={payment?.amount}
             required={oneOff} placeholder={oneOff ? '0.00' : inputMoney(item.amount)} />
@@ -209,7 +222,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
               placeholder={String(item.day)} onChange={event => setPaymentDay(event.target.value)} />
           </label>
         </div>
-        <p className="muted form-note">{item.provisional ? 'This schedule is provisional. Confirm its dates in the commitment editor to enable automatic overdue status.' : 'Unpaid instalments turn red after their due date in Malaysia time.'} Mark an instalment paid once it is fully settled.</p>
+        <p className="muted form-note">{item.provisional ? 'This schedule is provisional. Confirm its dates in the commitment editor to enable automatic overdue status.' : expired ? 'The original due date has passed.' : 'Unpaid instalments turn red after their due date in Malaysia time.'} Mark an instalment paid once it is fully settled.</p>
       </>}
       {type === 'spending' && <>
         <p className="muted form-note">{monthLabel(month, 'long')}</p>

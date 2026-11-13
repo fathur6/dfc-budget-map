@@ -20,9 +20,10 @@ Open the production app in Safari, then use **Share → Add to Home Screen**. Le
 ## How projections work
 
 - Take-home income uses the month-specific value when entered, then the default. Without either, the app leaves the balance blank.
-- Monthly commitments include every active instalment, including those already paid. An instalment is scheduled through its due day and becomes missed afterwards unless marked paid. A provisional schedule stays scheduled until confirmed or marked manually.
+- The Commitment Map shows each instalment in its original due month. Choose a payment month on the instalment to allocate an early or late payment to that month's budget. Use **Planned** before payment and **Paid** with the actual month once settled. **View transfers** in Monthly Summary shows the original total and each adjustment.
+- The dashboard includes paid and unpaid commitments in their allocated months. An instalment with a verified due date becomes missed after its original due day unless marked paid.
 - Each spending category contributes the greater of its budget and recorded spending to the forecast. The projected balance is income minus commitments and forecast spending.
-- The simulator adds the proposed payment to every month of its term. It applies prior missed instalments to the first month and checks the lowest remaining balance against the entered buffer. Earlier missed payments appear separately on the dashboard. Estimates depend on the entered income, commitments and spending.
+- The simulator adds the proposed payment to every month of its term. It includes each instalment in its allocated month and applies older missed payments still due to the first month of the scenario. It checks the lowest remaining balance against the entered buffer.
 
 ## Vercel and Supabase
 

@@ -77,11 +77,17 @@ function BalanceCell({ balance }) {
   </span>
 }
 
-function MonthlySummary({ months, month, current, summaries, chooseMonth }) {
+function MonthlySummary({ months, month, current, summaries, chooseMonth, open }) {
   const rows = [
-    { label: 'Income', value: entry => entry.income },
-    { label: 'Commitment', value: entry => entry.committed },
-    { label: 'Spending', value: entry => entry.hasSpending ? entry.spent : null },
+    { label: 'Income', value: entry => money(entry.income) },
+    { label: 'Commitment', value: (entry, value) => entry.movedIn.length || entry.movedOut.length
+      ? <button type="button" className="commitment-detail-button"
+        aria-label={'Commitment breakdown for ' + monthLabel(value, 'long') + ', ' + money(entry.committed)}
+        onClick={() => open({ type: 'commitment-breakdown', month: value })}>
+        {money(entry.committed)}<small>View transfers</small>
+      </button>
+      : money(entry.committed) },
+    { label: 'Spending', value: entry => money(entry.hasSpending ? entry.spent : null) },
   ]
   return <section className="panel map-panel monthly-summary" aria-labelledby="monthly-summary-title">
     <div className="panel-heading">
@@ -95,10 +101,30 @@ function MonthlySummary({ months, month, current, summaries, chooseMonth }) {
       {rows.map(({ label, value }) => <tr key={label}>
         <th scope="row">{label}</th>
         {summaries.map((entry, index) => <td key={months[index]}
-          className={months[index] === month ? 'selected-col' : ''}>{money(value(entry))}</td>)}
+          className={months[index] === month ? 'selected-col' : ''}>{value(entry, months[index])}</td>)}
       </tr>)}
     </MonthGrid>
   </section>
+}
+
+function CommitmentBreakdown({ month, summary, close }) {
+  return <Modal title={'Commitments for ' + monthLabel(month, 'long')} close={close}>
+    <div className="editor">
+      <dl className="transfer-breakdown">
+        <div><dt>Originally due</dt><dd>{money(summary.scheduledCommitment)}</dd></div>
+        {summary.movedIn.map(entry => <div key={'in:' + paymentKey(entry.id, entry.dueMonth)}>
+          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid' : 'Planned'} · Due {monthLabel(entry.dueMonth)}</small></dt>
+          <dd className="transfer-in">+{money(entry.amount)}</dd>
+        </div>)}
+        {summary.movedOut.map(entry => <div key={'out:' + paymentKey(entry.id, entry.dueMonth)}>
+          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid in ' : 'Planned for '}{monthLabel(entry.paymentMonth)}</small></dt>
+          <dd className="transfer-out">{money(-entry.amount)}</dd>
+        </div>)}
+        <div><dt>Total for this month</dt><dd>{money(summary.committed)}</dd></div>
+      </dl>
+      <footer className="modal-actions"><div className="spacer" /><button className="button secondary" onClick={close}>Done</button></footer>
+    </div>
+  </Modal>
 }
 
 function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open }) {
@@ -112,7 +138,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
       <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
     </div>
     <MonthGrid rowHeading="Commitment" label="Commitments across six months" months={months} month={month}
-      current={current} chooseMonth={chooseMonth} totalLabel="Monthly total" totals={summaries.map(entry => entry.committed)}>
+      current={current} chooseMonth={chooseMonth} totalLabel="Originally due" totals={summaries.map(entry => entry.scheduledCommitment)}>
       {rows.map(item => {
         const Icon = icons[item.category] ?? CreditCard
         return <tr key={item.id}>
@@ -123,11 +149,14 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const entry = installment(data, item, value, today)
             const status = entry && statuses[entry.status]
             const StatusIcon = status?.icon
+            const moved = entry?.paymentMonth && entry.paymentMonth !== value
+            const movement = moved ? (entry.status === 'paid' ? 'Paid in ' : 'Planned for ') + monthLabel(entry.paymentMonth) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
-              {entry ? <button className={'tile ' + entry.status}
-                aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount)}
+              {entry ? <button className={'tile ' + entry.status + (moved ? ' moved-payment' : '')}
+                aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount) + (moved ? ', ' + movement : '')}
                 onClick={() => open({ type: 'payment', item, month: value })}>
-                <StatusIcon size={14} strokeWidth={2.3} /><span>{money(entry.amount)}</span>
+                <span className="payment-amount"><StatusIcon size={14} strokeWidth={2.3} />{money(entry.amount)}</span>
+                {moved && <small>{movement}</small>}
               </button> : value >= '2000-01' && value <= '2100-12'
                 ? <button type="button" className="inactive-tile"
                   aria-label={'Add payment for ' + item.name + ', ' + monthLabel(value, 'long')}
@@ -386,7 +415,7 @@ function App() {
             {summary.missedCount > 0 && <span className="missed-count">{summary.missedCount} missed</span>}
           </div>}
 
-          <MonthlySummary months={months} month={month} current={current} summaries={summaries} chooseMonth={setMonth} />
+          <MonthlySummary months={months} month={month} current={current} summaries={summaries} chooseMonth={setMonth} open={setEditor} />
           <CommitmentMap data={data} months={months} month={month} current={current} today={today}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} />
           <Spending data={data} months={months} month={month} current={current}
@@ -402,9 +431,10 @@ function App() {
     {editor?.type === 'help' && <Modal title="How it works" close={() => setEditor(null)}>
       <div className="editor help-copy">
         <p>Enter take-home income, recurring commitments and spending categories. Set a first and last month for instalments or use the same month twice for a one-off bill.</p>
-        <p>Each commitment cell is one monthly payment. Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
-        <p>Projected balance equals income minus all commitments and forecast spending. Each category uses whichever is higher, its budget or recorded spending.</p>
-        <p>The simulator tests each month of the proposed term against your buffer. It charges earlier missed payments to the first month. Earlier missed payments are shown separately on the dashboard.</p>
+        <p>Each commitment cell stays in its original due month. Choose a different payment month when planning or recording an early or late payment. Open View transfers in Monthly Summary to see which payments were moved.</p>
+        <p>Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
+        <p>Projected balance equals income minus the commitments allocated to that month and forecast spending. Each category uses whichever is higher, its budget or recorded spending.</p>
+        <p>The simulator follows the payment months you choose. It charges earlier missed payments that still need to be covered to the first month of the scenario.</p>
         <p>Browser budgets stay on this device. Signing in opens a separate Supabase budget.</p>
       </div>
     </Modal>}
@@ -420,7 +450,9 @@ function App() {
         <footer className="modal-actions"><div className="spacer" /><button className="button primary" type="submit">Show month <ArrowRight size={16} /></button></footer>
       </form>
     </Modal>}
-    {editor && !['sign-in', 'password', 'help', 'month'].includes(editor.type) && snapshot && <Editor
+    {editor?.type === 'commitment-breakdown' && data && <CommitmentBreakdown month={editor.month}
+      summary={monthSummary(data, editor.month, today)} close={() => setEditor(null)} />}
+    {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown'].includes(editor.type) && snapshot && <Editor
       key={identity} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
       today={today} save={save} reload={refresh} />}
     {notice && <div className="toast" role="status"><ShieldCheck size={18} /> {notice}</div>}

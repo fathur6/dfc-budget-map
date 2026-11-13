@@ -46,6 +46,7 @@ export function readBackup(text) {
     || !validateItems(budget.categories, item => validAmount(item.planned))
     || !validateEntries(budget.payments, budget.commitments, item =>
       (item.status === undefined || ['paid', 'missed'].includes(item.status))
+      && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
       && (item.oneOff === undefined || (item.oneOff === true && validAmount(item.amount)))
       && (item.day === undefined || (Number.isInteger(item.day) && item.day >= 1 && item.day <= 31))
       && (item.amount === undefined || validAmount(item.amount)), true)
