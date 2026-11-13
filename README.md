@@ -13,6 +13,10 @@ npm run build
 
 The sample budget is fictional. **Start fresh** opens a blank browser budget. **Data** imports or exports a private JSON backup. Browser budgets persist in the current browser and origin. Export before moving between origins or devices. Import replaces the current workspace.
 
+## Install on iPhone
+
+Open the production app in Safari, then use **Share → Add to Home Screen**. Leave **Open as Web App** on if the option appears. In a browser where you are already signed in, use **Data → Set sign-in password**. Open **Budget Map** from the Home Screen and sign in with the same email and that password. Supabase sync needs an internet connection.
+
 ## How projections work
 
 - Take-home income uses the month-specific value when entered, then the default. Without either, the app leaves the balance blank.
@@ -23,7 +27,7 @@ The sample budget is fictional. **Start fresh** opens a blank browser budget. **
 ## Vercel and Supabase
 
 1. Create a dedicated Supabase project and apply the SQL migration in [supabase/migrations](supabase/migrations) using the SQL Editor or Supabase CLI.
-2. Create the intended sign-in user in Supabase Authentication and disable public sign-ups. Set the Supabase Auth Site URL to the production app. The app emails sign-in links to pre-created users. Configure SMTP when the built-in mail service cannot deliver to the intended address.
+2. Create the intended sign-in user in Supabase Authentication and disable public sign-ups. Set the Supabase Auth Site URL to the production app. The app emails sign-in links to pre-created users and supports password sign-in for the installed app. Configure SMTP when the built-in mail service cannot deliver to the intended address.
 3. Import this repository into Vercel as a Vite project. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel. Use the project's publishable key or legacy anon key. Keep secret and service-role keys out of the browser bundle.
 4. Deploy, sign in, and import the browser backup if migrating an existing budget. Verify the first save and refresh in the signed-in workspace.
 

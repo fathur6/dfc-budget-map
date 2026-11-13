@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, CarFront, ChevronLeft,
-  ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, Grid2X2, House, Layers3, LogIn,
+  ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, Grid2X2, House, KeyRound, Layers3, LogIn,
   LogOut, Pencil, Plus, ShieldCheck, Wallet, Zap,
 } from 'lucide-react'
 import '@fontsource-variable/geist'
@@ -11,7 +11,7 @@ import {
   addMonths, categoryMonth, emptyBudget, installment, money, monthLabel, monthSummary,
   outstandingBefore, parseMoney, simulate, todayMYT,
 } from './budget.js'
-import { Editor, Modal, MonthField, SignIn, statuses } from './editors.jsx'
+import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
 import { downloadBackup } from './backup.js'
 import './styles.css'
@@ -276,6 +276,7 @@ function App() {
           {snapshot && <details className="data-menu">
             <summary className="button secondary">Data</summary>
             <div className="data-options">
+              {user && <button onClick={event => { event.currentTarget.closest('details').open = false; setEditor({ type: 'password' }) }}><KeyRound size={15} /> Set sign-in password</button>}
               <button onClick={event => { event.currentTarget.closest('details').open = false; setEditor({ type: 'import' }) }}><FileUp size={15} /> Import budget</button>
               <button onClick={event => { event.currentTarget.closest('details').open = false; downloadBackup(data) }}><Download size={15} /> Export backup</button>
             </div>
@@ -340,6 +341,8 @@ function App() {
     </main>
 
     {editor?.type === 'sign-in' && <SignIn supabase={supabase} close={() => setEditor(null)} />}
+    {editor?.type === 'password' && user && <SetPassword supabase={supabase} close={() => setEditor(null)}
+      saved={() => { setEditor(null); setNotice('Sign-in password saved') }} />}
     {editor?.type === 'help' && <Modal title="How it works" close={() => setEditor(null)}>
       <div className="editor help-copy">
         <p>Enter take-home income, recurring commitments and spending categories. Set a first and last month for instalments or use the same month twice for a one-off bill.</p>
@@ -361,7 +364,7 @@ function App() {
         <footer className="modal-actions"><div className="spacer" /><button className="button primary" type="submit">Show month <ArrowRight size={16} /></button></footer>
       </form>
     </Modal>}
-    {editor && !['sign-in', 'help', 'month'].includes(editor.type) && snapshot && <Editor
+    {editor && !['sign-in', 'password', 'help', 'month'].includes(editor.type) && snapshot && <Editor
       key={identity} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
       today={today} save={save} reload={refresh} />}
     {notice && <div className="toast" role="status"><ShieldCheck size={18} /> {notice}</div>}

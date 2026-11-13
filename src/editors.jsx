@@ -217,6 +217,9 @@ export function SignIn({ supabase, close }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [sent, setSent] = useState(false)
+  const [usePassword, setUsePassword] = useState(() =>
+    matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+  )
   async function submit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -224,14 +227,14 @@ export function SignIn({ supabase, close }) {
     setError('')
     try {
       const email = String(form.get('email')).trim()
-      const { error: failure } = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false },
-      })
+      const { error: failure } = usePassword
+        ? await supabase.auth.signInWithPassword({ email, password: String(form.get('password')) })
+        : await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
       if (failure) throw failure
-      setSent(true)
+      if (usePassword) close()
+      else setSent(true)
     } catch (failure) {
-      setError(failure.message || 'The sign-in link could not be sent.')
+      setError(failure.message || 'Sign-in could not be completed.')
     } finally {
       setBusy(false)
     }
@@ -242,8 +245,57 @@ export function SignIn({ supabase, close }) {
       <footer className="modal-actions"><div className="spacer" /><button className="button secondary" onClick={close}>Done</button></footer>
     </div> : <form className="editor" onSubmit={submit}>
       <label className="field"><span>Email</span><input name="email" type="email" autoComplete="email" required /></label>
+      {usePassword && <label className="field"><span>Password</span>
+        <input name="password" type="password" autoComplete="current-password" required />
+      </label>}
+      {usePassword && <p className="muted form-note">Set a password from the Data menu in a browser where you’re already signed in.</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
-      <footer className="modal-actions"><div className="spacer" /><button className="button primary" disabled={busy}>{busy ? 'Sending…' : 'Email sign-in link'}</button></footer>
+      <footer className="modal-actions">
+        <button type="button" className="button secondary" disabled={busy}
+          onClick={() => { setUsePassword(value => !value); setError('') }}>{usePassword ? 'Use email link' : 'Use password'}</button>
+        <div className="spacer" />
+        <button className="button primary" disabled={busy}>{usePassword ? (busy ? 'Signing in…' : 'Sign in') : (busy ? 'Sending…' : 'Email sign-in link')}</button>
+      </footer>
     </form>}
+  </Modal>
+}
+
+export function SetPassword({ supabase, close, saved }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function submit(event) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const password = String(form.get('password'))
+    if (password !== form.get('confirm')) {
+      setError('The passwords don’t match.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const { error: failure } = await supabase.auth.updateUser({ password })
+      if (failure) throw failure
+      saved()
+    } catch (failure) {
+      setError(failure.message || 'The password could not be saved.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return <Modal title="Set sign-in password" close={close} busy={busy}>
+    <form className="editor" onSubmit={submit}>
+      <p className="muted form-note">Use this password with your existing email to sign in from the iPhone Home Screen app.</p>
+      <label className="field"><span>New password (12 characters or more)</span>
+        <input name="password" type="password" autoComplete="new-password" minLength={12} required />
+      </label>
+      <label className="field"><span>Confirm password</span>
+        <input name="confirm" type="password" autoComplete="new-password" minLength={12} required />
+      </label>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <footer className="modal-actions">
+        <div className="spacer" /><button className="button primary" disabled={busy}>{busy ? 'Saving…' : 'Save password'}</button>
+      </footer>
+    </form>
   </Modal>
 }

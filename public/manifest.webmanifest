@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "DFC Budget Map",
+  "short_name": "Budget Map",
+  "description": "Map monthly commitments, spending and cash flow in Malaysian ringgit.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c1014",
+  "theme_color": "#0c1014",
+  "icons": [
+    { "src": "/icons/budget-map-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/budget-map-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
