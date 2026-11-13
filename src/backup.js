@@ -1,3 +1,5 @@
+import { active } from './budget.js'
+
 const validMonth = month => typeof month === 'string' && /^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/.test(month)
 const validAmount = value => Number.isSafeInteger(value) && value >= 0 && value <= 999999999
 const record = value => value && typeof value === 'object' && !Array.isArray(value)
@@ -17,14 +19,15 @@ function validateItems(items, validValues) {
   })
 }
 
-function validateEntries(map, items, validateEntry) {
+function validateEntries(map, items, validateEntry, allowOneOff = false) {
   if (!record(map)) return false
   const ids = new Map(items.map(item => [item.id, item]))
   return Object.entries(map).every(([key, entry]) => {
     const [id, month, extra] = key.split(':')
     const item = ids.get(id)
     return item && extra === undefined && validMonth(month)
-      && month >= item.start && (!item.end || month <= item.end) && record(entry) && validateEntry(entry)
+      && record(entry) && validateEntry(entry)
+      && (active(item, month) || (allowOneOff && entry.oneOff === true))
   })
 }
 
@@ -43,7 +46,9 @@ export function readBackup(text) {
     || !validateItems(budget.categories, item => validAmount(item.planned))
     || !validateEntries(budget.payments, budget.commitments, item =>
       (item.status === undefined || ['paid', 'missed'].includes(item.status))
-      && (item.amount === undefined || validAmount(item.amount)))
+      && (item.oneOff === undefined || (item.oneOff === true && validAmount(item.amount)))
+      && (item.day === undefined || (Number.isInteger(item.day) && item.day >= 1 && item.day <= 31))
+      && (item.amount === undefined || validAmount(item.amount)), true)
     || !validateEntries(budget.spending, budget.categories, item =>
       (item.planned == null || validAmount(item.planned)) && (item.spent == null || validAmount(item.spent)))
     || (budget.notes !== undefined && (!Array.isArray(budget.notes)

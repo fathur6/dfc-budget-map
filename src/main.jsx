@@ -8,8 +8,8 @@ import {
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import {
-  addMonths, categoryMonth, emptyBudget, installment, money, monthLabel, monthSummary,
-  outstandingBefore, parseMoney, simulate, todayMYT,
+  active, addMonths, categoryMonth, emptyBudget, installment, money, monthLabel, monthSummary,
+  outstandingBefore, parseMoney, paymentKey, simulate, todayMYT,
 } from './budget.js'
 import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
@@ -50,12 +50,14 @@ function CommitmentMap({ data, month, today, chooseMonth, open }) {
   }, [month])
   const months = rangeOffsets.map(offset => addMonths(month, offset))
   const current = today.slice(0, 7)
-  const rows = data.commitments.filter(item => (!item.end || item.end >= months[0]) && item.start <= months.at(-1))
+  const rows = data.commitments.filter(item => months.some(value =>
+    active(item, value) || data.payments[paymentKey(item.id, value)]?.oneOff
+  ))
   const summaries = months.map(month => monthSummary(data, month, today))
   return <section id="commitments" className="panel map-panel" aria-labelledby="map-title">
     <div className="panel-heading">
       <div><div className="section-title"><Layers3 size={20} /><h2 id="map-title">Commitment map</h2></div>
-        <p>Select a cell to update a payment.</p></div>
+        <p>Select a cell to add or update a payment.</p></div>
       <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
     </div>
     <div className="table-scroll" ref={scrollRef} tabIndex={0} role="region" aria-label="Commitments across six months">
@@ -86,7 +88,12 @@ function CommitmentMap({ data, month, today, chooseMonth, open }) {
                     aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount)}
                     onClick={() => open({ type: 'payment', item, month: value })}>
                     <StatusIcon size={14} strokeWidth={2.3} /><span>{money(entry.amount)}</span>
-                  </button> : <span className="inactive-tile" aria-label="No payment due">—</span>}
+                  </button> : value >= '2000-01' && value <= '2100-12'
+                    ? <button type="button" className="inactive-tile"
+                      aria-label={'Add payment for ' + item.name + ', ' + monthLabel(value, 'long')}
+                      title="Add payment for this month"
+                      onClick={() => open({ type: 'payment', item, month: value })}>—</button>
+                    : <span className="inactive-tile">—</span>}
                 </td>
               })}
             </tr>

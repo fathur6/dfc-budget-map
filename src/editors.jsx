@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, Clock3, X } from 'lucide-react'
-import { inputMoney, installment, monthLabel, parseMoney, paymentKey } from './budget.js'
+import { active, dueDate, inputMoney, installment, monthLabel, parseMoney, paymentKey } from './budget.js'
 import { readBackup } from './backup.js'
 
 export const statuses = {
@@ -70,11 +70,18 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
   const { type, item } = editor
   const data = snapshot.budget
   const key = item && paymentKey(item.id, month)
+  const payment = data.payments[key]
   const entry = type === 'payment' ? installment(data, item, month, today) : null
-  const expired = entry?.due < today && !item?.provisional
+  const oneOff = type === 'payment' && (!active(item, month) || payment?.oneOff)
+  const [paymentDay, setPaymentDay] = useState(payment?.day ?? item?.day ?? 1)
+  const day = Number(paymentDay)
+  const validDay = Number.isInteger(day) && day >= 1 && day <= 31
+  const due = type === 'payment' ? dueDate(month, validDay ? day : item.day) : null
+  const expired = due && due < today && !item?.provisional
   const titles = {
     income: 'Set monthly income', commitment: item ? 'Edit commitment' : 'Add commitment',
-    payment: item?.name, category: item ? 'Edit spending category' : 'Add spending category',
+    payment: entry ? item?.name : 'Add payment for ' + item?.name,
+    category: item ? 'Edit spending category' : 'Add spending category',
     spending: item?.name, import: 'Import a budget', reset: 'Start a fresh budget',
   }
   async function submit(event) {
@@ -114,9 +121,9 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
           const end = readMonth(get('end'), true)
           if (end && end < start) throw new Error('The end month must be on or after the start month.')
           const overrides = type === 'commitment' ? data.payments : data.spending
-          if (item && Object.keys(overrides).some(key => {
+          if (item && Object.entries(overrides).some(([key, entry]) => {
             const [id, month] = key.split(':')
-            return id === item.id && (month < start || (end && month > end))
+            return id === item.id && !(type === 'commitment' && entry.oneOff) && !active({ start, end }, month)
           })) throw new Error('The schedule must include all months with recorded entries.')
           const common = { id: item?.id ?? crypto.randomUUID(), name: readName(get('name')), start, end }
           const record = type === 'commitment'
@@ -127,12 +134,20 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
       }
       if (type === 'payment') {
         const status = get('status')
-        const amount = readAmount(get('amount'), { optional: true })
-        if (status === 'auto' && amount == null) delete next.payments[key]
-        else next.payments[key] = {
-          ...(status !== 'auto' && { status }),
-          ...(amount != null && { amount: status === 'paid' || amount !== item.amount ? amount : undefined }),
-          ...(status === 'paid' && amount == null && { amount: item.amount }),
+        const remove = event.nativeEvent.submitter?.value === 'remove-payment'
+        if (remove) {
+          delete next.payments[key]
+        } else {
+          const amount = readAmount(get('amount'), { optional: !oneOff })
+          const day = get('day') && validDay ? Number(get('day')) : null
+          const keepAmount = oneOff || status === 'paid' || (amount != null && amount !== item.amount)
+          if (!keepAmount && day == null && status === 'auto') delete next.payments[key]
+          else next.payments[key] = {
+            ...(oneOff && { oneOff: true }),
+            ...(status !== 'auto' && { status }),
+            ...(keepAmount && { amount: amount ?? item.amount }),
+            ...(day != null && { day }),
+          }
         }
       }
       if (type === 'spending') {
@@ -177,16 +192,23 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
       {type === 'payment' && <>
         <p className="muted form-note">{monthLabel(month, 'long')} · due {new Intl.DateTimeFormat('en-MY', {
           day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-        }).format(new Date(entry.due + 'T00:00:00Z'))}</p>
+        }).format(new Date(due + 'T00:00:00Z'))}</p>
+        {oneOff && <p className="muted form-note">This entry applies only to {monthLabel(month, 'long')}.</p>}
         <fieldset className="status-picker"><legend>Payment status</legend>
           {[['paid', 'Paid', Check], ['auto', expired ? 'Automatic (missed)' : 'Scheduled', Clock3], ['missed', 'Missed', AlertTriangle]]
             .map(([value, label, Icon]) => <label className={value === 'auto' ? 'scheduled' : value} key={value}>
-              <input type="radio" name="status" value={value} defaultChecked={(data.payments[key]?.status ?? 'auto') === value} />
+              <input type="radio" name="status" value={value} defaultChecked={(payment?.status ?? 'auto') === value} />
               <span><Icon size={16} />{label}</span>
             </label>)}
         </fieldset>
-        <MoneyField label="Amount for this month (optional)" name="amount" value={data.payments[key]?.amount}
-          required={false} placeholder={inputMoney(item.amount)} />
+        <div className="form-grid">
+          <MoneyField label={oneOff ? 'Amount for this month' : 'Amount for this month (optional)'} name="amount" value={payment?.amount}
+            required={oneOff} placeholder={oneOff ? '0.00' : inputMoney(item.amount)} />
+          <label className="field"><span>Due day (optional)</span>
+            <input type="number" name="day" min="1" max="31" step="1" defaultValue={payment?.day}
+              placeholder={String(item.day)} onChange={event => setPaymentDay(event.target.value)} />
+          </label>
+        </div>
         <p className="muted form-note">{item.provisional ? 'This schedule is provisional. Confirm its dates in the commitment editor to enable automatic overdue status.' : 'Unpaid instalments turn red after their due date in Malaysia time.'} Mark an instalment paid once it is fully settled.</p>
       </>}
       {type === 'spending' && <>
@@ -202,6 +224,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload }) 
       {error && <div className="form-error" role="alert">{error} <button type="button" className="link-button" onClick={reload}>Reload saved budget</button></div>}
       {confirm && <p className="form-error" role="status">Delete this {type} and all its monthly entries?</p>}
       <footer className="modal-actions">
+        {type === 'payment' && payment?.oneOff && <button type="submit" value="remove-payment" formNoValidate disabled={busy} className="button danger">Remove monthly entry</button>}
         {item && ['commitment', 'category'].includes(type) && (confirm
           ? <button type="submit" value="delete" formNoValidate disabled={busy} className="button danger">Confirm delete</button>
           : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}

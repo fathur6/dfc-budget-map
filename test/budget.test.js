@@ -49,6 +49,22 @@ test('uses higher of spending or budget for each category and allows zero income
   assert.equal(monthSummary(changed, '2026-11', today).balance, null)
 })
 
+test('includes a one-off payment outside the schedule in only its selected month', () => {
+  const changed = structuredClone(data)
+  const device = changed.commitments.find(item => item.id === 'plan')
+  changed.payments['plan:2027-02'] = { oneOff: true, amount: 12345, day: 31 }
+  const overdue = '2027-03-01'
+  assert.deepEqual(installment(changed, device, '2027-02', overdue),
+    { due: '2027-02-28', amount: 12345, status: 'missed' })
+  assert.equal(installment(changed, device, '2027-01', overdue), null)
+  assert.equal(installment(changed, device, '2027-03', overdue), null)
+  assert.equal(monthSummary(changed, '2027-02', overdue).committed,
+    monthSummary(data, '2027-02', overdue).committed + 12345)
+  assert.equal(outstandingBefore(changed, '2027-03', overdue),
+    outstandingBefore(data, '2027-03', overdue) + 12345)
+  assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: changed })), changed)
+})
+
 test('tests the whole term, the user buffer and earlier missed payments once', () => {
   const changed = structuredClone(data)
   changed.incomeByMonth['2027-01'] = 640000

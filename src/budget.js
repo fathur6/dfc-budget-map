@@ -51,9 +51,9 @@ export function paymentKey(id, month) {
 }
 
 export function installment(data, commitment, month, today) {
-  if (!active(commitment, month)) return null
   const override = data.payments[paymentKey(commitment.id, month)]
-  const due = dueDate(month, commitment.day)
+  if (!active(commitment, month) && !override?.oneOff) return null
+  const due = dueDate(month, override?.day ?? commitment.day)
   return {
     due,
     amount: override?.amount ?? commitment.amount,
@@ -89,6 +89,7 @@ export function monthSummary(data, month, today) {
 
 export function outstandingBefore(data, start, today) {
   const current = today.slice(0, 7)
+  const commitments = new Map(data.commitments.map(item => [item.id, item]))
   let total = 0
   for (const item of data.commitments) {
     const last = item.end && item.end < current ? item.end : current
@@ -96,6 +97,14 @@ export function outstandingBefore(data, start, today) {
       const entry = installment(data, item, month, today)
       if (entry.status === 'missed') total += entry.amount
     }
+  }
+  for (const [key, payment] of Object.entries(data.payments)) {
+    if (!payment.oneOff) continue
+    const [id, month] = key.split(':')
+    const item = commitments.get(id)
+    if (!item || active(item, month) || month >= start || month > current) continue
+    const entry = installment(data, item, month, today)
+    if (entry.status === 'missed') total += entry.amount
   }
   return total
 }
