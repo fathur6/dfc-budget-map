@@ -158,14 +158,26 @@ export function outstandingBefore(data, start, today) {
   return total
 }
 
-export function simulate(data, { start, duration, amount, buffer }, today) {
+export function projectCommitment(data, { start, duration, amount }, today) {
   const arrears = outstandingBefore(data, start, today)
-  let tightest = null
-  for (let offset = 0; offset < duration; offset++) {
+  const months = Array.from({ length: duration }, (_, offset) => {
     const month = addMonths(start, offset)
-    const { balance, loanProceeds } = monthSummary(data, month, today)
-    if (balance == null) return { missing: month, arrears }
-    const remaining = balance - loanProceeds - amount - (offset === 0 ? arrears : 0)
+    const { income, committed, spent } = monthSummary(data, month, today)
+    const existing = committed + (offset === 0 ? arrears : 0)
+    return {
+      month, cashInflow: income, committed: existing, spent, proposed: amount,
+      balance: income == null ? null : income - existing - spent - amount,
+    }
+  })
+  return { arrears, months }
+}
+
+export function simulate(data, scenario, today, projection = projectCommitment(data, scenario, today)) {
+  const { buffer } = scenario
+  const { arrears, months } = projection
+  let tightest = null
+  for (const { month, balance: remaining } of months) {
+    if (remaining == null) return { missing: month, arrears }
     if (!tightest || remaining < tightest.remaining) tightest = { month, remaining }
   }
   return {

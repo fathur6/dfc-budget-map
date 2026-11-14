@@ -2,20 +2,21 @@ import { useState } from 'react'
 import { Activity } from 'lucide-react'
 import { money, monthLabel } from './budget.js'
 
-const series = [
+const baseSeries = [
   { key: 'cashInflow', label: 'Income', color: '#4cdbb1' },
   { key: 'committed', label: 'Commitments', color: '#f7bb62' },
   { key: 'spent', label: 'Spending', color: '#83b9fa' },
   { key: 'balance', label: 'Balance', color: 'linear-gradient(90deg, #4cdbb1 50%, #ff8299 50%)' },
 ]
 
-export function CashFlowChart({ months, summaries, month }) {
+export function CashFlowChart({ months, summaries, month, title = 'Six-month cash flow', projected = false }) {
   const [inspectedMonth, inspect] = useState(null)
   const [hidden, setHidden] = useState([])
+  const series = projected ? [...baseSeries.slice(0, -1), { key: 'proposed', label: 'New payment', color: '#bd9bfa' }, baseSeries.at(-1)] : baseSeries
   const visible = series.filter(({ key }) => !hidden.includes(key))
-  const values = summaries.flatMap(({ cashInflow, committed, spent }) => {
+  const values = summaries.flatMap(({ cashInflow, committed, spent, proposed = 0 }) => {
     const start = cashInflow ?? 0
-    return [start, start - committed - spent]
+    return [start, start - committed - spent - proposed]
   })
   const peak = Math.max(100, ...values.map(Math.abs))
   const magnitude = 10 ** Math.floor(Math.log10(peak / 4))
@@ -34,8 +35,10 @@ export function CashFlowChart({ months, summaries, month }) {
 
   return <section className="panel map-panel" aria-labelledby="cash-flow-title">
     <div className="panel-heading">
-      <div><div className="section-title"><Activity size={19} /><h2 id="cash-flow-title">Six-month cash flow</h2></div>
-        <p>Income includes additional inflows. Commitments and spending step down to the balance. Select a month to see exact amounts.</p></div>
+      <div><div className="section-title"><Activity size={19} /><h2 id="cash-flow-title">{title}</h2></div>
+        <p>{projected
+          ? 'Income excludes loan proceeds. Select a month for exact amounts.'
+          : 'Income includes additional inflows. Commitments and spending step down to the balance. Select a month to see exact amounts.'}{projected && months.length > 6 && ' Scroll for later months.'}</p></div>
     </div>
     <div className="cash-chart">
       <div className="cash-legend" role="group" aria-label="Chart series">
@@ -45,13 +48,13 @@ export function CashFlowChart({ months, summaries, month }) {
           <i style={{ background: color }} />{label}
         </button>)}
       </div>
-      <div className="cash-scroll">
-        <div className="cash-plot">
+      <div className="cash-scroll" tabIndex={0} role="region" aria-label={title + ' chart'}>
+        <div className="cash-plot" style={{ minWidth: months.length * 90 + 'px', width: months.length > 6 ? `calc((100% - 86px) * ${months.length / 6})` : undefined }}>
           {ticks.map(tick => <div key={tick} className={'cash-axis' + (tick === 0 ? ' zero' : '')}
             style={{ top: percent(tick) + '%' }} aria-hidden="true"><span>{money(tick).replace(/\.00$/, '')}</span></div>)}
-          <div className="cash-months">
+          <div className="cash-months" style={{ gridTemplateColumns: `repeat(${months.length}, minmax(0, 1fr))` }}>
             {months.map((value, index) => {
-              const { cashInflow, committed, spent, balance } = summaries[index]
+              const { cashInflow, committed, spent, proposed = 0, balance } = summaries[index]
               const start = cashInflow ?? 0
               const afterCommitments = start - committed
               return <button type="button" className="cash-month" key={value}
@@ -66,6 +69,8 @@ export function CashFlowChart({ months, summaries, month }) {
                     style={{ ...band(start, afterCommitments), background: series[1].color }} />}
                   {isVisible('spent') && <span className="cash-bar cash-outflow"
                     style={{ ...band(afterCommitments, afterCommitments - spent), background: series[2].color }} />}
+                  {projected && isVisible('proposed') && <span className="cash-bar cash-outflow"
+                    style={{ ...band(afterCommitments - spent, afterCommitments - spent - proposed), background: series[3].color }} />}
                   {balance != null && balance !== 0 && isVisible('balance') &&
                     <span className={'cash-balance ' + (balance < 0 ? 'deficit' : 'surplus')}
                       style={band(0, balance)} />}

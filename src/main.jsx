@@ -9,7 +9,7 @@ import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import {
   active, addMonths, categoryMonth, emptyBudget, installment, money, monthLabel, monthSummary,
-  parseMoney, paymentKey, simulate, todayMYT,
+  parseMoney, paymentKey, projectCommitment, simulate, todayMYT,
 } from './budget.js'
 import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
@@ -368,7 +368,8 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
 function Simulator({ data, month, today }) {
   const [scenario, setScenario] = useState(null)
   const [error, setError] = useState('')
-  const result = scenario && simulate(data, scenario, today)
+  const projection = scenario && projectCommitment(data, scenario, today)
+  const result = scenario && simulate(data, scenario, today, projection)
   function submit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -385,7 +386,8 @@ function Simulator({ data, month, today }) {
     setError('')
     setScenario({ start, duration, amount, buffer })
   }
-  return <section id="simulator" className="panel map-panel simulator-panel" aria-labelledby="sim-title">
+  return <>
+  <section id="simulator" className="panel map-panel simulator-panel" aria-labelledby="sim-title">
     <div className="panel-heading">
       <div><div className="section-title"><FlaskConical size={19} /><h1 id="sim-title">Commitment simulator</h1></div>
         <p>See whether a new payment fits across its full term.</p></div>
@@ -410,6 +412,9 @@ function Simulator({ data, month, today }) {
       {result.arrears > 0 && <p>Includes {money(result.arrears)} in earlier missed payments in the first month.</p>}
     </div>}
   </section>
+  {projection && <CashFlowChart title="Scenario projection" projected
+    months={projection.months.map(entry => entry.month)} summaries={projection.months} month={scenario.start} />}
+  </>
 }
 
 function App() {

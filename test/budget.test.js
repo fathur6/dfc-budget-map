@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { addMonths, demoBudget, dueDate, emptyBudget, installment, monthSummary, outstandingBefore, parseMoney, simulate, todayMYT } from '../src/budget.js'
+import { addMonths, demoBudget, dueDate, emptyBudget, installment, monthSummary, outstandingBefore, parseMoney, projectCommitment, simulate, todayMYT } from '../src/budget.js'
 import { readBackup } from '../src/backup.js'
 
 const today = '2026-11-13'
@@ -196,4 +196,19 @@ test('allocates a partial payment and its carried balance without double countin
   changed.payments['test:2026-11'].partial.settled = true
   assert.equal(monthSummary(changed, '2026-12', '2026-12-21').paidTotal, 124000)
   assert.equal(outstandingBefore(changed, '2027-01', '2027-01-01'), 223000)
+})
+
+test('projects the full term with the same monthly balances used by the simulator', () => {
+  const changed = structuredClone(data)
+  changed.incomeSourcesByMonth['2026-11'] = [{ type: 'Loan proceeds', name: '', amount: 100000 }]
+  const scenario = { start: '2026-11', duration: 12, amount: 15000, buffer: 25000 }
+  const projection = projectCommitment(changed, scenario, today)
+  assert.equal(projection.months.length, 12)
+  assert.equal(projection.months.at(-1).month, '2027-10')
+  assert.equal(projection.months[0].cashInflow, 850000)
+  assert.equal(projection.months[0].committed, 335000)
+  assert.equal(projection.months[1].committed, 313000)
+  assert.equal(projection.months[0].proposed, 15000)
+  assert.equal(simulate(changed, scenario, today).remaining,
+    Math.min(...projection.months.map(entry => entry.balance)))
 })
