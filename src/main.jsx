@@ -134,8 +134,12 @@ function CommitmentBreakdown({ month, summary, close }) {
 }
 
 function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open }) {
+  const carriedByMonth = new Map(months.map((value, index) => [
+    value, summaries[index].movedIn.filter(entry => entry.partial),
+  ]))
   const rows = data.commitments.filter(item => months.some(value =>
     active(item, value) || data.payments[paymentKey(item.id, value)]?.oneOff
+    || carriedByMonth.get(value).some(entry => entry.id === item.id)
   ))
   return <section id="commitments" className="panel map-panel" aria-labelledby="map-title">
     <div className="panel-heading">
@@ -153,20 +157,30 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
           </button></th>
           {months.map(value => {
             const entry = installment(data, item, value, today)
+            const carried = carriedByMonth.get(value).filter(payment => payment.id === item.id)
+            const carriedTotal = carried.reduce((sum, payment) => sum + payment.amount, 0)
+            const moved = entry?.paymentMonth && entry.paymentMonth !== value
+            const ownAmount = moved ? 0 : entry?.partial?.paid ?? entry?.amount ?? 0
+            const shownAmount = carriedTotal ? ownAmount + carriedTotal : entry?.amount
             const status = entry?.partial
               ? { ...(entry.partial.settled ? statuses.paid : statuses.scheduled), label: entry.partial.settled ? 'Settled across months' : 'Partially paid' }
               : entry && statuses[entry.status]
-            const StatusIcon = status?.icon
-            const moved = entry?.paymentMonth && entry.paymentMonth !== value
+            const tone = carriedTotal
+              ? (carried.every(payment => payment.status === 'paid') && (!ownAmount || entry.partial || entry.status === 'paid') ? 'paid' : 'scheduled')
+              : entry?.partial ? (entry.partial.settled ? 'paid' : 'scheduled') : entry?.status
+            const StatusIcon = carriedTotal ? statuses[tone].icon : status?.icon
+            const carryNote = carriedTotal ? money(carriedTotal) + ' carried in' : ''
             const movement = entry?.partial
               ? money(entry.partial.paid) + ' paid · ' + money(entry.amount - entry.partial.paid)
                 + (entry.partial.settled ? ' paid in ' : ' carried to ') + monthLabel(entry.partial.month)
               : moved ? (entry.status === 'paid' ? 'Paid in ' : 'Planned for ') + monthLabel(entry.paymentMonth) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
-              {entry ? <button className={'tile ' + (entry.partial ? entry.partial.settled ? 'paid' : 'scheduled' : entry.status) + (movement ? ' moved-payment' : '')}
-                aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount) + (movement ? ', ' + movement : '')}
-                onClick={() => open({ type: 'payment', item, month: value })}>
-                <span className="payment-amount"><StatusIcon size={14} strokeWidth={2.3} />{money(entry.amount)}</span>
+              {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
+                aria-label={[item.name, monthLabel(value, 'long'), money(shownAmount), carryNote, status?.label, movement].filter(Boolean).join(', ')}
+                onClick={() => open(entry ? { type: 'payment', item, month: value }
+                  : { type: 'payment', item, month: carried[0].dueMonth })}>
+                <span className="payment-amount"><StatusIcon size={14} strokeWidth={2.3} />{money(shownAmount)}</span>
+                {carryNote && <small>{carryNote}</small>}
                 {movement && <small>{movement}</small>}
               </button> : value >= '2000-01' && value <= '2100-12'
                 ? <button type="button" className="inactive-tile"
