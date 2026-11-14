@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, Clock3, Plus, X } from 'lucide-react'
-import { active, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey } from './budget.js'
+import { active, addMonths, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey } from './budget.js'
 import { readBackup } from './backup.js'
 
 export const statuses = {
@@ -82,7 +82,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const entry = type === 'payment' ? installment(data, item, month, today) : null
   const oneOff = type === 'payment' && (!active(item, month) || payment?.oneOff === true)
   const [paymentDay, setPaymentDay] = useState(payment?.day ?? item?.day ?? 1)
-  const [paymentStatus, setPaymentStatus] = useState(payment?.status ?? 'auto')
+  const [paymentStatus, setPaymentStatus] = useState(payment?.partial ? 'partial' : payment?.status ?? 'auto')
   const day = Number(paymentDay)
   const validDay = Number.isInteger(day) && day >= 1 && day <= 31
   const due = type === 'payment' ? dueDate(month, validDay ? day : item.day) : null
@@ -155,17 +155,29 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           delete next.payments[key]
         } else {
           const amount = readAmount(get('amount'), { optional: !oneOff })
-          const paymentMonth = status === 'missed' ? '' : readMonth(get('paymentMonth'), true)
+          const paymentMonth = ['missed', 'partial'].includes(status) ? '' : readMonth(get('paymentMonth'), true)
           if (status === 'paid' && (paymentMonth || month) > today.slice(0, 7)
             && !(payment?.status === 'paid' && !payment?.paymentMonth && !paymentMonth)) {
             throw new Error('Choose the month the payment was made, or select Planned for a future payment.')
           }
+          let partial
+          if (status === 'partial') {
+            const paid = readAmount(get('partialPaid'), { positive: true })
+            const carryMonth = readMonth(get('carryMonth'))
+            const settled = form.has('carrySettled')
+            const current = today.slice(0, 7)
+            if (month > current || (settled && carryMonth > current)) throw new Error('Paid amounts must be recorded in the current month or earlier.')
+            if (paid >= (amount ?? item.amount)) throw new Error('Partial payment must be less than the total amount due.')
+            if (carryMonth <= month) throw new Error('Choose a later month for the remaining balance.')
+            partial = { paid, month: carryMonth, settled }
+          }
           const day = get('day') && validDay ? Number(get('day')) : null
-          const keepAmount = oneOff || status === 'paid' || (amount != null && amount !== item.amount)
+          const keepAmount = oneOff || status === 'paid' || partial || (amount != null && amount !== item.amount)
           if (!keepAmount && day == null && status === 'auto' && !paymentMonth) delete next.payments[key]
           else next.payments[key] = {
             ...(oneOff && { oneOff: true }),
-            ...(status !== 'auto' && { status }),
+            ...(!partial && status !== 'auto' && { status }),
+            ...(partial && { partial }),
             ...(keepAmount && { amount: amount ?? item.amount }),
             ...(day != null && { day }),
             ...(paymentMonth && { paymentMonth }),
@@ -250,20 +262,26 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         }).format(new Date(due + 'T00:00:00Z'))}</p>
         {oneOff && <p className="muted form-note">One-off instalment originally due in {monthLabel(month, 'long')}.</p>}
         <fieldset className="status-picker"><legend>Payment status</legend>
-          {[['paid', 'Paid', Check], ['auto', 'Planned', Clock3], ['missed', 'Missed', AlertTriangle]]
-            .map(([value, label, Icon]) => <label className={value === 'auto' ? 'scheduled' : value} key={value}>
+          {[['paid', 'Paid', Check], ['partial', 'Partially paid', Clock3], ['auto', 'Planned', Clock3], ['missed', 'Missed', AlertTriangle]]
+            .map(([value, label, Icon]) => <label className={['auto', 'partial'].includes(value) ? 'scheduled' : value} key={value}>
               <input type="radio" name="status" value={value} checked={paymentStatus === value} onChange={() => setPaymentStatus(value)} />
               <span><Icon size={16} />{label}</span>
             </label>)}
         </fieldset>
-        {paymentStatus !== 'missed' && <>
+        {!['missed', 'partial'].includes(paymentStatus) && <>
           <MonthField label={paymentStatus === 'paid' ? 'Month paid (optional)' : 'Planned payment month (optional)'}
             name="paymentMonth" value={payment?.paymentMonth} required={false}
             max={paymentStatus === 'paid' ? today.slice(0, 7) : undefined} />
           <p className="muted form-note">Leave blank to use the original month. Choose a different month to charge its budget.</p>
         </>}
+        {paymentStatus === 'partial' && <>
+          <MoneyField label="Amount paid in original month" name="partialPaid" value={payment?.partial?.paid} />
+          <MonthField label="Carry balance to" name="carryMonth" min={addMonths(month, 1)}
+            value={payment?.partial?.month ?? addMonths(month, 1)} />
+          <label className="check-field"><input type="checkbox" name="carrySettled" defaultChecked={payment?.partial?.settled} /> Remaining balance paid in selected month</label>
+        </>}
         <div className="form-grid">
-          <MoneyField label={oneOff ? 'Amount for this month' : 'Amount for this month (optional)'} name="amount" value={payment?.amount}
+          <MoneyField label={paymentStatus === 'partial' ? 'Total amount due' : oneOff ? 'Amount for this month' : 'Amount for this month (optional)'} name="amount" value={payment?.amount}
             required={oneOff} placeholder={oneOff ? '0.00' : inputMoney(item.amount)} />
           <label className="field"><span>Due day (optional)</span>
             <input type="number" name="day" min="1" max="31" step="1" defaultValue={payment?.day}

@@ -153,16 +153,21 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
           </button></th>
           {months.map(value => {
             const entry = installment(data, item, value, today)
-            const status = entry && statuses[entry.status]
+            const status = entry?.partial
+              ? { ...(entry.partial.settled ? statuses.paid : statuses.scheduled), label: entry.partial.settled ? 'Settled across months' : 'Partially paid' }
+              : entry && statuses[entry.status]
             const StatusIcon = status?.icon
             const moved = entry?.paymentMonth && entry.paymentMonth !== value
-            const movement = moved ? (entry.status === 'paid' ? 'Paid in ' : 'Planned for ') + monthLabel(entry.paymentMonth) : ''
+            const movement = entry?.partial
+              ? money(entry.partial.paid) + ' paid · ' + money(entry.amount - entry.partial.paid)
+                + (entry.partial.settled ? ' paid in ' : ' carried to ') + monthLabel(entry.partial.month)
+              : moved ? (entry.status === 'paid' ? 'Paid in ' : 'Planned for ') + monthLabel(entry.paymentMonth) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
-              {entry ? <button className={'tile ' + entry.status + (moved ? ' moved-payment' : '')}
-                aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount) + (moved ? ', ' + movement : '')}
+              {entry ? <button className={'tile ' + (entry.partial ? entry.partial.settled ? 'paid' : 'scheduled' : entry.status) + (movement ? ' moved-payment' : '')}
+                aria-label={item.name + ', ' + monthLabel(value, 'long') + ', ' + status.label + ', ' + money(entry.amount) + (movement ? ', ' + movement : '')}
                 onClick={() => open({ type: 'payment', item, month: value })}>
                 <span className="payment-amount"><StatusIcon size={14} strokeWidth={2.3} />{money(entry.amount)}</span>
-                {moved && <small>{movement}</small>}
+                {movement && <small>{movement}</small>}
               </button> : value >= '2000-01' && value <= '2100-12'
                 ? <button type="button" className="inactive-tile"
                   aria-label={'Add payment for ' + item.name + ', ' + monthLabel(value, 'long')}

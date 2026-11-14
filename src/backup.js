@@ -26,7 +26,7 @@ function validateEntries(map, items, validateEntry, allowOneOff = false) {
     const [id, month, extra] = key.split(':')
     const item = ids.get(id)
     return item && extra === undefined && validMonth(month)
-      && record(entry) && validateEntry(entry)
+      && record(entry) && validateEntry(entry, month)
       && (active(item, month) || (allowOneOff && entry.oneOff === true))
   })
 }
@@ -49,9 +49,14 @@ export function readBackup(text) {
       && typeof item.category === 'string' && item.category.length <= 40
       && (item.provisional === undefined || typeof item.provisional === 'boolean'))
     || !validateItems(budget.categories, item => validAmount(item.planned))
-    || !validateEntries(budget.payments, budget.commitments, item =>
+    || !validateEntries(budget.payments, budget.commitments, (item, month) =>
       (item.status === undefined || ['paid', 'missed'].includes(item.status))
       && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
+      && (item.partial === undefined || (record(item.partial)
+        && item.status === undefined && item.paymentMonth === undefined && validAmount(item.amount)
+        && validAmount(item.partial.paid) && item.partial.paid > 0 && item.partial.paid < item.amount
+        && validMonth(item.partial.month) && item.partial.month > month
+        && typeof item.partial.settled === 'boolean'))
       && (item.oneOff === undefined || (item.oneOff === true && validAmount(item.amount)))
       && (item.day === undefined || (Number.isInteger(item.day) && item.day >= 1 && item.day <= 31))
       && (item.amount === undefined || validAmount(item.amount)), true)

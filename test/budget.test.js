@@ -177,3 +177,23 @@ test('accepts older backups and validates any monthly income sources', () => {
     assert.throws(() => readBackup(serialize({ ...legacy, incomeSourcesByMonth: invalid })), /valid DFC/)
   }
 })
+
+test('allocates a partial payment and its carried balance without double counting', () => {
+  const changed = emptyBudget()
+  changed.commitments = [{ id: 'test', name: 'Test plan', category: 'Other', start: '2026-11', end: '', amount: 223000, day: 20 }]
+  changed.payments['test:2026-11'] = { amount: 223000, partial: { paid: 99000, month: '2026-12', settled: false } }
+  const nov = monthSummary(changed, '2026-11', today)
+  const dec = monthSummary(changed, '2026-12', today)
+  assert.equal(nov.scheduledCommitment, 223000)
+  assert.equal(nov.committed, 99000)
+  assert.equal(nov.paidTotal, 99000)
+  assert.equal(dec.committed, 347000)
+  assert.equal(dec.outstanding, 347000)
+  assert.equal(dec.movedIn[0].amount, 124000)
+  assert.equal(outstandingBefore(changed, '2027-01', '2027-01-01'), 347000)
+  const backup = JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: changed })
+  assert.deepEqual(readBackup(backup), changed)
+  changed.payments['test:2026-11'].partial.settled = true
+  assert.equal(monthSummary(changed, '2026-12', '2026-12-21').paidTotal, 124000)
+  assert.equal(outstandingBefore(changed, '2027-01', '2027-01-01'), 223000)
+})

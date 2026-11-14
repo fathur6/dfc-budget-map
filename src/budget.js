@@ -59,6 +59,7 @@ export function installment(data, commitment, month, today) {
   return {
     due,
     amount: override?.amount ?? commitment.amount,
+    ...(override?.partial && { partial: override.partial }),
     ...(override?.paymentMonth && { paymentMonth: override.paymentMonth }),
     status: override?.status === 'paid' ? 'paid'
       : override?.status === 'missed' || (!commitment.provisional && due < today) ? 'missed' : 'scheduled',
@@ -76,9 +77,14 @@ export function monthSummary(data, month, today) {
     const entry = installment(data, item, month, today)
     return entry ? [{ ...entry, id: item.id, name: item.name, dueMonth: month }] : []
   })
-  const movedOut = original.filter(entry => entry.paymentMonth && entry.paymentMonth !== month)
+  const allocated = original.map(entry => entry.partial
+    ? { ...entry, amount: entry.partial.paid, status: 'paid' } : entry)
+  const movedOut = [
+    ...original.filter(entry => entry.paymentMonth && entry.paymentMonth !== month),
+    ...original.filter(entry => entry.partial).map(carriedBalance),
+  ]
   const movedIn = movedInstallments(data, today).filter(entry => entry.paymentMonth === month)
-  const commitments = [...original.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
+  const commitments = [...allocated.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
   const categories = data.categories.map(item => categoryMonth(data, item, month)).filter(Boolean)
   const baseIncome = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
   const incomeSources = data.incomeSourcesByMonth?.[month] ?? []
@@ -106,14 +112,25 @@ export function monthSummary(data, month, today) {
   }
 }
 
+function carriedBalance(entry) {
+  return {
+    ...entry,
+    amount: entry.amount - entry.partial.paid,
+    paymentMonth: entry.partial.month,
+    status: entry.partial.settled ? 'paid' : 'scheduled',
+  }
+}
+
 function movedInstallments(data, today) {
   const commitments = new Map(data.commitments.map(item => [item.id, item]))
   return Object.entries(data.payments).flatMap(([key, payment]) => {
     const [id, dueMonth] = key.split(':')
-    if (!payment.paymentMonth || payment.paymentMonth === dueMonth) return []
+    if (!payment.partial && (!payment.paymentMonth || payment.paymentMonth === dueMonth)) return []
     const item = commitments.get(id)
     const entry = item && installment(data, item, dueMonth, today)
-    return entry ? [{ ...entry, id, name: item.name, dueMonth }] : []
+    if (!entry) return []
+    const original = { ...entry, id, name: item.name, dueMonth }
+    return [entry.partial ? carriedBalance(original) : original]
   })
 }
 
@@ -125,7 +142,7 @@ export function outstandingBefore(data, start, today) {
     const last = item.end && item.end < current ? item.end : current
     for (let month = item.start; month < start && month <= last; month = addMonths(month, 1)) {
       const entry = installment(data, item, month, today)
-      if (entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
+      if (!entry.partial && entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
     }
   }
   for (const [key, payment] of Object.entries(data.payments)) {
@@ -134,7 +151,7 @@ export function outstandingBefore(data, start, today) {
     const item = commitments.get(id)
     if (!item || active(item, month) || month >= start || month > current) continue
     const entry = installment(data, item, month, today)
-    if (entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
+    if (!entry.partial && entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
   }
   for (const entry of movedInstallments(data, today)) {
     if (entry.status !== 'paid' && entry.paymentMonth < start && entry.paymentMonth < current) total += entry.amount

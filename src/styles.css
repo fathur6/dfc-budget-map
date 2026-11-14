@@ -155,7 +155,7 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .summary-detail-button:hover :is(svg, small), .summary-detail-button:focus-visible :is(svg, small) { color: var(--green); }
 .payment-amount { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .tile.moved-payment { flex-direction: column; gap: 3px; }
-.moved-payment small { font-size: .9em; }
+.moved-payment small { font-size: .9em; white-space: normal; }
 .transfer-breakdown { margin: 0; }
 .transfer-breakdown > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--line); }
 .transfer-breakdown > div:last-child { font-weight: 700; border-bottom: 0; }
