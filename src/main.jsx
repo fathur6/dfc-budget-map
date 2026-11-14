@@ -9,7 +9,7 @@ import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import {
   active, addMonths, categoryMonth, emptyBudget, installment, money, monthLabel, monthSummary,
-  outstandingBefore, parseMoney, paymentKey, simulate, todayMYT,
+  parseMoney, paymentKey, simulate, todayMYT,
 } from './budget.js'
 import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
@@ -465,8 +465,7 @@ function App() {
   const months = rangeOffsets.map(offset => addMonths(month, offset))
   const summaries = data && months.map(value => monthSummary(data, value, today))
   const summary = summaries?.[1]
-  const arrears = data && month >= current ? outstandingBefore(data, month, today) : 0
-  const balance = summary?.balance ?? null
+  const balance = summary?.recordedBalance ?? null
   const paidPercent = summary?.count ? Math.round(summary.paidCount * 100 / summary.count) : 0
 
   return <div className="shell">
@@ -539,11 +538,11 @@ function App() {
                 : data.incomeByMonth[month] == null ? 'Default monthly income' : 'Using this month’s override'} />
             <Metric icon={CreditCard} label="Commitments" value={summary.committed} tone="amber"
               note={<><strong>{money(summary.outstanding)}</strong> unpaid this month</>} />
-            <Metric icon={Wallet} label="Spending budget" value={summary.planned} tone="blue"
-              note={<><strong>{money(summary.spent)}</strong> recorded this month</>} />
+            <Metric icon={Wallet} label="Recorded spending" value={summary.hasSpending ? summary.spent : null} tone="blue"
+              note={<><strong>{money(summary.planned)}</strong> budgeted this month</>} />
             <Metric icon={balance < 0 ? ArrowDownLeft : ArrowUpRight}
-              label={balance < 0 ? 'Projected deficit' : balance == null ? 'Projected balance' : balance === 0 ? 'Projected balance' : 'Projected surplus'} value={balance}
-              tone={balance < 0 ? 'red' : 'green'} note={arrears > 0 ? <>{money(arrears)} in earlier missed payments</> : 'After commitments and forecast spending'} />
+              label={balance < 0 ? 'Deficit' : balance > 0 ? 'Surplus' : 'Balance'} value={balance}
+              tone={balance < 0 ? 'red' : 'green'} note={balance == null ? 'Enter income and spending to see the balance' : 'After commitments and recorded spending'} />
           </div>
 
           {summary.count > 0 && <div className="completion">
@@ -573,7 +572,7 @@ function App() {
         <p>Open an income cell to enter base income and additional sources for that month. Record loan proceeds there and add repayments in the Commitment Map. Set the same first and last month for a one-off bill.</p>
         <p>Each commitment cell stays in its original due month. Choose a different payment month when planning or recording an early or late payment. Open View transfers in Monthly Summary to see which payments were moved.</p>
         <p>Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
-        <p>Projected balance equals income plus loan proceeds, minus commitments and forecast spending. Each spending category uses whichever is higher, its budget or recorded spending.</p>
+        <p>The Overview and Monthly Summary balances use income plus loan proceeds, minus commitments and recorded spending. The simulator uses the higher of budgeted and recorded spending for each category.</p>
         <p>The simulator excludes loan proceeds and follows the payment months you choose. It charges earlier missed payments that still need to be covered to the first month of the scenario.</p>
         <p>Browser budgets stay on this device. Signing in opens a separate Supabase budget.</p>
       </div>
