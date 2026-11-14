@@ -286,7 +286,7 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open }
   return <section id="spending" className="panel map-panel" aria-labelledby="spending-title">
     <div className="panel-heading">
       <div><div className="section-title"><Wallet size={19} /><h2 id="spending-title">Monthly spending</h2></div>
-        <p>Budgeted amounts appear until you record spending. Drag a recorded amount to copy it within the same row.</p></div>
+        <p>Select an empty cell to record spending. Drag a recorded amount to copy it within the same row.</p></div>
       <button className="button secondary" onClick={() => open({ type: 'category' })}><Plus size={17} /> Add category</button>
     </div>
     <MonthGrid rowHeading="Category" label="Spending across six months" months={months} month={month}
@@ -305,8 +305,8 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open }
           const canDrop = editable && dragged?.id === item.id && dragged.month !== value
           return <td key={value} className={value === month ? 'selected-col' : ''}>
             {editable
-              ? <button type="button" className={(recorded ? 'tile recorded-spend' : 'tile budgeted-spend') + (canDrop ? ' spending-drop-target' : '')}
-                aria-label={recorded ? 'Edit spending for ' + label + ', ' + money(entry.spent) : 'Add spending for ' + label + ', budgeted ' + money(entry.planned)}
+              ? <button type="button" className={(recorded ? 'tile recorded-spend' : 'inactive-tile') + (canDrop ? ' spending-drop-target' : '')}
+                aria-label={recorded ? 'Edit spending for ' + label + ', ' + money(entry.spent) : 'Add spending for ' + label}
                 draggable={recorded}
                 onDragStart={recorded ? event => {
                   event.dataTransfer.effectAllowed = 'copy'
@@ -324,8 +324,7 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open }
                   setDragged(null)
                 } : undefined}
                 onClick={() => open({ type: 'spending', item, month: value })}>
-                {money(entry.spent ?? entry.planned)}
-                {!recorded && <small>Budgeted</small>}
+                {money(entry.spent)}
               </button>
               : <span className="inactive-tile" title="Category inactive this month">—</span>}
           </td>
