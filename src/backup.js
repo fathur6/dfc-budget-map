@@ -48,7 +48,7 @@ export function readBackup(text) {
       && Number.isInteger(item.day) && item.day >= 1 && item.day <= 31
       && typeof item.category === 'string' && item.category.length <= 40
       && (item.provisional === undefined || typeof item.provisional === 'boolean'))
-    || !validateItems(budget.categories, item => validAmount(item.planned))
+    || !validateItems(budget.categories, () => true)
     || !validateEntries(budget.payments, budget.commitments, (item, month) =>
       (item.status === undefined || ['paid', 'missed'].includes(item.status))
       && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
@@ -61,7 +61,7 @@ export function readBackup(text) {
       && (item.day === undefined || (Number.isInteger(item.day) && item.day >= 1 && item.day <= 31))
       && (item.amount === undefined || validAmount(item.amount)), true)
     || !validateEntries(budget.spending, budget.categories, item =>
-      (item.planned == null || validAmount(item.planned)) && (item.spent == null || validAmount(item.spent)))
+      (item.spent == null || validAmount(item.spent)))
     || (budget.notes !== undefined && (!Array.isArray(budget.notes)
       || !budget.notes.every(note => typeof note === 'string' && note.length <= 1500)))) throw invalidBackup()
   return budget

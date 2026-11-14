@@ -103,12 +103,12 @@ function MonthlySummary({ months, month, current, summaries, chooseMonth, open }
   return <section className="panel map-panel monthly-summary" aria-labelledby="monthly-summary-title">
     <div className="panel-heading">
       <div><div className="section-title"><Grid2X2 size={20} /><h2 id="monthly-summary-title">Monthly summary</h2></div>
-        <p>Balance uses recorded spending. Enter spending for a month to see its balance.</p>
+        <p>Balance uses recorded spending. Empty spending cells count as zero.</p>
       </div>
     </div>
     <MonthGrid rowHeading="Cash flow" label="Cash flow across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Balance"
-      totals={summaries.map(entry => entry.recordedBalance)} renderTotal={balance => <BalanceCell balance={balance} />}>
+      totals={summaries.map(entry => entry.balance)} renderTotal={balance => <BalanceCell balance={balance} />}>
       {rows.map(({ label, value }) => <tr key={label}>
         <th scope="row">{label}</th>
         {summaries.map((entry, index) => <td key={months[index]}
@@ -465,7 +465,7 @@ function App() {
   const months = rangeOffsets.map(offset => addMonths(month, offset))
   const summaries = data && months.map(value => monthSummary(data, value, today))
   const summary = summaries?.[1]
-  const balance = summary?.recordedBalance ?? null
+  const balance = summary?.balance ?? null
   const paidPercent = summary?.count ? Math.round(summary.paidCount * 100 / summary.count) : 0
 
   return <div className="shell">
@@ -539,10 +539,10 @@ function App() {
             <Metric icon={CreditCard} label="Commitments" value={summary.committed} tone="amber"
               note={<><strong>{money(summary.outstanding)}</strong> unpaid this month</>} />
             <Metric icon={Wallet} label="Recorded spending" value={summary.hasSpending ? summary.spent : null} tone="blue"
-              note={<><strong>{money(summary.planned)}</strong> budgeted this month</>} />
+              note={'Total recorded this month'} />
             <Metric icon={balance < 0 ? ArrowDownLeft : ArrowUpRight}
               label={balance < 0 ? 'Deficit' : balance > 0 ? 'Surplus' : 'Balance'} value={balance}
-              tone={balance < 0 ? 'red' : 'green'} note={balance == null ? 'Enter income and spending to see the balance' : 'After commitments and recorded spending'} />
+              tone={balance < 0 ? 'red' : 'green'} note={balance == null ? 'Enter income to see the balance' : 'After commitments and recorded spending'} />
           </div>
 
           {summary.count > 0 && <div className="completion">
@@ -572,7 +572,7 @@ function App() {
         <p>Open an income cell to enter base income and additional sources for that month. Record loan proceeds there and add repayments in the Commitment Map. Set the same first and last month for a one-off bill.</p>
         <p>Each commitment cell stays in its original due month. Choose a different payment month when planning or recording an early or late payment. Open View transfers in Monthly Summary to see which payments were moved.</p>
         <p>Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
-        <p>The Overview and Monthly Summary balances use income plus loan proceeds, minus commitments and recorded spending. The simulator uses the higher of budgeted and recorded spending for each category.</p>
+        <p>The Overview and Monthly Summary balances use income plus loan proceeds, minus commitments and recorded spending. The simulator also uses recorded spending. Empty spending cells count as zero.</p>
         <p>The simulator excludes loan proceeds and follows the payment months you choose. It charges earlier missed payments that still need to be covered to the first month of the scenario.</p>
         <p>Browser budgets stay on this device. Signing in opens a separate Supabase budget.</p>
       </div>

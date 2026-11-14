@@ -20,7 +20,7 @@ test('counts all commitments in the forecast and isolates unpaid balances', () =
   assert.equal(now.committed, 313000)
   assert.equal(now.paidTotal, 243000)
   assert.equal(now.outstanding, 70000)
-  assert.equal(now.balance, 232000)
+  assert.equal(now.balance, 346000)
   assert.equal(monthSummary(data, '2027-01', today).committed, 281500)
 })
 
@@ -36,14 +36,15 @@ test('supports payment overrides, due-day grace, one-off bills and provisional s
   assert.equal(installment(changed, electric, '2026-11', '2026-11-21').status, 'paid')
 })
 
-test('uses higher of spending or budget for each category and allows zero income', () => {
+test('ignores legacy spending budgets and allows zero income', () => {
   const changed = structuredClone(data)
-  changed.spending['food:2026-11'] = { spent: 200000 }
+  changed.categories[0].planned = 900000
+  changed.spending['food:2026-11'] = { spent: 200000, planned: 950000 }
   changed.incomeByMonth['2026-11'] = 0
   const result = monthSummary(changed, '2026-11', today)
-  assert.equal(result.spendingForecast, 345000)
+  assert.equal(result.spent, 299000)
   assert.equal(result.income, 0)
-  assert.equal(result.balance, -658000)
+  assert.equal(result.balance, -612000)
   assert.equal(monthSummary(emptyBudget(), '2026-11', today).balance, null)
   changed.incomeByMonth['2026-11'] = null
   assert.equal(monthSummary(changed, '2026-11', today).balance, null)
@@ -51,12 +52,12 @@ test('uses higher of spending or budget for each category and allows zero income
 
 test('uses only recorded spending for the summary balance and distinguishes zero from missing', () => {
   const changed = structuredClone(data)
-  assert.equal(monthSummary(changed, '2026-11', today).recordedBalance, 346000)
-  assert.equal(monthSummary(changed, '2026-12', today).recordedBalance, null)
+  assert.equal(monthSummary(changed, '2026-11', today).balance, 346000)
+  assert.equal(monthSummary(changed, '2026-12', today).balance, 537000)
   changed.spending['food:2026-12'] = { spent: 0 }
-  assert.equal(monthSummary(changed, '2026-12', today).recordedBalance, 537000)
+  assert.equal(monthSummary(changed, '2026-12', today).balance, 537000)
   changed.incomeByMonth['2026-12'] = null
-  assert.equal(monthSummary(changed, '2026-12', today).recordedBalance, null)
+  assert.equal(monthSummary(changed, '2026-12', today).balance, null)
 })
 
 test('adds extra income and loan proceeds to cash flow for the selected month only', () => {
@@ -71,10 +72,9 @@ test('adds extra income and loan proceeds to cash flow for the selected month on
   assert.equal(result.income, 945000)
   assert.equal(result.loanProceeds, 500000)
   assert.equal(result.cashInflow, 1445000)
-  assert.equal(result.balance, 827000)
-  assert.equal(result.recordedBalance, 941000)
+  assert.equal(result.balance, 941000)
   assert.equal(monthSummary(changed, '2026-12', today).cashInflow, 850000)
-  assert.equal(simulate(changed, { start: '2026-11', duration: 1, amount: 10000, buffer: 0 }, today).remaining, 295000)
+  assert.equal(simulate(changed, { start: '2026-11', duration: 1, amount: 10000, buffer: 0 }, today).remaining, 409000)
   changed.incomeByMonth['2026-11'] = 0
   assert.equal(monthSummary(changed, '2026-11', today).cashInflow, 645000)
   changed.incomeByMonth['2026-11'] = null
@@ -102,10 +102,10 @@ test('tests the whole term, the user buffer and earlier missed payments once', (
   changed.incomeByMonth['2027-01'] = 640000
   assert.equal(outstandingBefore(changed, '2026-11', today), 22000)
   const run = options => simulate(changed, { start: '2026-11', duration: 3, amount: 40000, buffer: 20000, ...options }, today)
-  assert.deepEqual(run(), { month: '2027-01', remaining: 13500, arrears: 22000, status: 'tight', headroom: -6500 })
+  assert.deepEqual(run(), { month: '2026-11', remaining: 284000, arrears: 22000, status: 'fits', headroom: 264000 })
   assert.equal(run({ amount: 20000 }).status, 'fits')
-  assert.equal(run({ amount: 60000 }).status, 'deficit')
-  assert.equal(run({ duration: 1, amount: 200000 }).remaining, 10000)
+  assert.equal(run({ amount: 400000 }).status, 'deficit')
+  assert.equal(run({ duration: 1, amount: 200000 }).remaining, 124000)
   assert.equal(simulate(emptyBudget(), { start: '2026-11', duration: 1, amount: 40000, buffer: 0 }, today).missing, '2026-11')
 })
 
@@ -123,7 +123,7 @@ test('allocates a deferred installment to its planned month and replaces it with
   assert.equal(target.committed, 335000)
   assert.equal(target.movedIn[0].dueMonth, dueMonth)
   assert.equal(outstandingBefore(changed, plannedMonth, today), 0)
-  assert.equal(simulate(changed, { start: plannedMonth, duration: 1, amount: 10000, buffer: 0 }, today).remaining, 200000)
+  assert.equal(simulate(changed, { start: plannedMonth, duration: 1, amount: 10000, buffer: 0 }, today).remaining, 505000)
   assert.equal(outstandingBefore(changed, '2027-01', '2026-12-31'),
     outstandingBefore(data, '2027-01', '2026-12-31') - 22000)
   assert.equal(outstandingBefore(changed, '2027-01', '2027-01-02'),
@@ -144,7 +144,7 @@ test('charges an early payment to the earlier month and keeps its original insta
   const due = monthSummary(changed, '2026-12', today)
   assert.equal(early.committed, 344500)
   assert.equal(early.paidTotal, 274500)
-  assert.equal(early.recordedBalance, 314500)
+  assert.equal(early.balance, 314500)
   assert.equal(due.scheduledCommitment, 313000)
   assert.equal(due.committed, 281500)
   assert.equal(installment(changed, changed.commitments[4], '2026-12', today).status, 'paid')

@@ -23,7 +23,7 @@ Open the production app in Safari, then use **Share → Add to Home Screen**. Le
 - Gifts, project income and other income are added to the selected month’s income. Loan proceeds appear separately and increase that month’s cash balance. Enter repayments in the Commitment Map.
 - The Commitment Map shows each instalment in its original due month. Choose a payment month on the instalment to allocate an early or late payment to that month's budget. Use **Planned** before payment and **Paid** with the actual month once settled. **View transfers** in Monthly Summary shows the original total and each adjustment.
 - The dashboard includes paid and unpaid commitments in their allocated months. An instalment with a verified due date becomes missed after its original due day unless marked paid.
-- Each spending category contributes the greater of its budget and recorded spending to the forecast. The projected balance is income plus loan proceeds, minus commitments and forecast spending.
+- The balance is income plus loan proceeds, minus commitments and recorded spending. Empty spending cells count as zero, including in the simulator.
 - The simulator adds the proposed payment to every month of its term and excludes loan proceeds. It includes each instalment in its allocated month and applies older missed payments still due to the first month of the scenario. It checks the lowest remaining balance against the entered buffer.
 
 ## Vercel and Supabase

@@ -69,7 +69,7 @@ export function installment(data, commitment, month, today) {
 export function categoryMonth(data, category, month) {
   if (!active(category, month)) return null
   const entry = data.spending[paymentKey(category.id, month)]
-  return { planned: entry?.planned ?? category.planned, spent: entry?.spent ?? null }
+  return { spent: entry?.spent ?? null }
 }
 
 export function monthSummary(data, month, today) {
@@ -98,17 +98,14 @@ export function monthSummary(data, month, today) {
   const missed = commitments.filter(entry => entry.paymentMonth && entry.paymentMonth !== entry.dueMonth
     ? entry.status !== 'paid' && entry.paymentMonth < today.slice(0, 7)
     : entry.status === 'missed')
-  const planned = categories.reduce((total, entry) => total + entry.planned, 0)
   const spent = categories.reduce((total, entry) => total + (entry.spent ?? 0), 0)
   const hasSpending = categories.some(entry => entry.spent != null)
-  const spendingForecast = categories.reduce((total, entry) => total + Math.max(entry.planned, entry.spent ?? 0), 0)
   return {
-    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, planned, spent, spendingForecast, hasSpending, movedIn, movedOut,
+    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, spent, hasSpending, movedIn, movedOut,
     scheduledCommitment: original.reduce((total, entry) => total + entry.amount, 0),
     count: commitments.length, paidCount: paid.length, missedCount: missed.length,
     outstanding: committed - paidTotal,
-    balance: cashInflow == null ? null : cashInflow - committed - spendingForecast,
-    recordedBalance: cashInflow == null || !hasSpending ? null : cashInflow - committed - spent,
+    balance: cashInflow == null ? null : cashInflow - committed - spent,
   }
 }
 
@@ -193,9 +190,9 @@ export function demoBudget(today) {
     if (['home', 'car'].includes(item.id)) data.payments[paymentKey(item.id, current)] = { status: 'paid', amount: item.amount }
   }
   data.categories = [
-    { id: 'food', name: 'Food & groceries', planned: 160000, start: previous, end: '' },
-    { id: 'fuel', name: 'Fuel & transport', planned: 55000, start: previous, end: '' },
-    { id: 'family', name: 'Household & family', planned: 90000, start: previous, end: '' },
+    { id: 'food', name: 'Food & groceries', start: previous, end: '' },
+    { id: 'fuel', name: 'Fuel & transport', start: previous, end: '' },
+    { id: 'family', name: 'Household & family', start: previous, end: '' },
   ]
   data.spending[paymentKey('food', current)] = { spent: 92000 }
   data.spending[paymentKey('fuel', current)] = { spent: 31000 }
