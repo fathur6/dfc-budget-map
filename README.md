@@ -2,6 +2,20 @@
 
 Monthly cash-flow planning in MYR with a game-style commitment board. The board shows one prior month and four months ahead of the selected month. Each cell opens a payment editor with a month-specific amount and status. Use a last month for fixed-term instalments, or the same first and last month for a one-off commitment. Due dates and the current month follow Malaysia time.
 
+## Deploy your own copy
+
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ffathur6%2Fdfc-budget-map)
+
+You can set this up in your browser using your own GitHub, Vercel and Supabase accounts.
+
+1. **Deploy the app.** Click **Deploy to Vercel**, sign in, and follow the prompts to create a repository and deploy the app. Copy the production URL from the Vercel project dashboard.
+2. **Connect Supabase.** Install [Supabase from the Vercel Marketplace](https://vercel.com/integrations/supabase). Create a Supabase project and connect it to your new Vercel project. The integration supplies the public connection settings automatically. If you prefer a project created directly in Supabase, follow [Vercel and Supabase](#vercel-and-supabase) below.
+3. **Initialize the database.** In Supabase, open **SQL Editor → New query**. Copy the full contents of the [budget setup SQL](supabase/migrations/20261113000100_budget_workspaces.sql), paste into the editor, and click **Run** once on the new project.
+4. **Set up private sign-in.** In Supabase **Authentication**, disable public sign-ups and set the **Site URL** under **URL Configuration** to the production URL from step 1. Under **Users**, use **Add user** to create your own account. For password sign-in, set a strong password and confirm your own email when creating the account.
+5. **Open your app.** In Vercel, go to **Deployments**, redeploy to pick up the synced settings, then open the production URL. Choose **Sign in → Use password** or request an email sign-in link. Save a small test entry and refresh to confirm cloud storage works.
+
+The Vercel button deploys the frontend. Database initialization and the first private account are one-time dashboard steps. Each installation uses its own Supabase project. Supabase service-role keys and database passwords belong in server-side systems only. The [keep-alive](#optional-supabase-keep-alive) is optional.
+
 ## Run locally
 
 ```sh

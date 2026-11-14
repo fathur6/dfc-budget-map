@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { demoBudget, emptyBudget } from './budget.js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const manualUrl = import.meta.env.VITE_SUPABASE_URL
+const manualKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const manualConfig = Boolean(manualUrl || manualKey)
+const url = manualConfig ? manualUrl : import.meta.env.NEXT_PUBLIC_SUPABASE_URL
+const key = manualConfig ? manualKey : import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 export const supabase = url && key ? createClient(url, key) : null
 export const incompleteConfig = Boolean(url) !== Boolean(key)
 const localKey = 'dfc-budget-map:v1'
