@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, CarFront, ChevronLeft,
-  ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, Grid2X2, House, KeyRound, Layers3, LogIn,
+  ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, GripVertical, Grid2X2, House, KeyRound, Layers3, LogIn,
   LogOut, Pencil, Plus, ShieldCheck, Wallet, Zap,
 } from 'lucide-react'
 import '@fontsource-variable/geist'
@@ -133,7 +133,11 @@ function CommitmentBreakdown({ month, summary, close }) {
   </Modal>
 }
 
-function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open }) {
+function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open, save }) {
+  const [draggedRow, setDraggedRow] = useState(null)
+  const [dropRow, setDropRow] = useState(null)
+  const [savingOrder, setSavingOrder] = useState(false)
+  const [orderError, setOrderError] = useState('')
   const carriedByMonth = new Map(months.map((value, index) => [
     value, summaries[index].movedIn.filter(entry => entry.partial),
   ]))
@@ -141,20 +145,81 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
     active(item, value) || data.payments[paymentKey(item.id, value)]?.oneOff
     || carriedByMonth.get(value).some(entry => entry.id === item.id)
   ))
+  function clearDrag() {
+    setDraggedRow(null)
+    setDropRow(null)
+  }
+
+  async function moveRow(from, to, after) {
+    clearDrag()
+    if (savingOrder || from === to) return
+    const item = data.commitments.find(entry => entry.id === from)
+    const commitments = data.commitments.filter(entry => entry.id !== from)
+    const target = commitments.findIndex(entry => entry.id === to)
+    if (!item || target < 0) return
+    commitments.splice(target + Number(after), 0, item)
+    setSavingOrder(true)
+    setOrderError('')
+    try {
+      await save({ ...data, commitments })
+    } catch (failure) {
+      setOrderError(failure.message || 'Could not save the commitment order.')
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
   return <section id="commitments" className="panel map-panel" aria-labelledby="map-title">
     <div className="panel-heading">
       <div><div className="section-title"><Layers3 size={20} /><h2 id="map-title">Commitment map</h2></div>
-        <p>Select a cell to add or update a payment.</p></div>
+        <p>Drag a row by its handle to reorder. Select a cell to update a payment.</p></div>
       <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
     </div>
+    {orderError && <p className="form-error" role="alert">{orderError}</p>}
     <MonthGrid rowHeading="Commitment" label="Commitments across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Originally due" totals={summaries.map(entry => entry.scheduledCommitment)}>
-      {rows.map(item => {
+      {rows.map((item, index) => {
         const Icon = icons[item.category] ?? CreditCard
-        return <tr key={item.id}>
-          <th scope="row"><button className="row-label" onClick={() => open({ type: 'commitment', item })} aria-label={'Edit ' + item.name}>
+        function afterMidpoint(event) {
+          const bounds = event.currentTarget.getBoundingClientRect()
+          return event.clientY > bounds.top + bounds.height / 2
+        }
+        return <tr key={item.id}
+          className={dropRow?.id === item.id ? (dropRow.after ? 'drop-after' : 'drop-before') : undefined}
+          onDragOver={event => {
+            if (!draggedRow || draggedRow === item.id || savingOrder) return
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'move'
+            setDropRow({ id: item.id, after: afterMidpoint(event) })
+          }}
+          onDragLeave={event => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setDropRow(null)
+          }}
+          onDrop={event => {
+            if (!draggedRow || draggedRow === item.id || savingOrder) return
+            event.preventDefault()
+            void moveRow(draggedRow, item.id, afterMidpoint(event))
+          }}>
+          <th scope="row"><div className="commitment-row-label">
+            <button type="button" className="icon-button row-grip" draggable={!savingOrder}
+              disabled={savingOrder} aria-label={'Reorder ' + item.name + ' with Up or Down'}
+              title="Drag to reorder or press Up or Down"
+              onDragStart={event => {
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData('text/plain', 'Commitment row')
+                setDraggedRow(item.id)
+              }}
+              onDragEnd={clearDrag}
+              onKeyDown={event => {
+                if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return
+                event.preventDefault()
+                const after = event.key === 'ArrowDown'
+                const target = rows[index + (after ? 1 : -1)]
+                if (target) void moveRow(item.id, target.id, after)
+              }}><GripVertical size={16} /></button>
+            <button className="row-label" onClick={() => open({ type: 'commitment', item })} aria-label={'Edit ' + item.name}>
             <span className="row-icon"><Icon size={16} /></span><span><strong>{item.name}</strong><small>{item.provisional ? 'Verify schedule' : item.category} · due {item.day}</small></span>
-          </button></th>
+          </button></div></th>
           {months.map(value => {
             const entry = installment(data, item, value, today)
             const carried = carriedByMonth.get(value).filter(payment => payment.id === item.id)
@@ -465,7 +530,7 @@ function App() {
 
           <MonthlySummary months={months} month={month} current={current} summaries={summaries} chooseMonth={setMonth} open={setEditor} />
           <CommitmentMap data={data} months={months} month={month} current={current} today={today}
-            summaries={summaries} chooseMonth={setMonth} open={setEditor} />
+            summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
           <Spending data={data} months={months} month={month} current={current}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} />
           <Simulator key={month} data={data} month={month} today={today} />
