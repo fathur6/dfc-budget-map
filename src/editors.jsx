@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, Clock3, Plus, X } from 'lucide-react'
-import { active, addMonths, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey } from './budget.js'
+import { active, addMonths, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, spendingCategories } from './budget.js'
 import { readBackup } from './backup.js'
 
 export const statuses = {
@@ -146,7 +146,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           const common = { id: item?.id ?? crypto.randomUUID(), name: readName(get('name')), start, end }
           const record = type === 'commitment'
             ? { ...common, category: get('category'), provisional: form.has('provisional'), amount: readAmount(get('amount'), { positive: true }), day: Number(get('day')) }
-            : common
+            : { ...common, ...(get('spendingCategory') && { category: get('spendingCategory') }) }
           if (type === 'category' && item) {
             for (const [key, entry] of Object.entries(next.spending)) {
               if (key.startsWith(item.id + ':') && entry.spent == null) delete next.spending[key]
@@ -250,6 +250,12 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           Update the first or last month to include it, then reopen its spending cell.
         </p>}
         <label className="field"><span>Name</span><input name="name" defaultValue={item?.name} maxLength={65} required /></label>
+        {type === 'category' && <label className="field"><span>Category</span>
+          <select name="spendingCategory" defaultValue={item?.category ?? ''}>
+            <option value="">Uncategorized</option>
+            {spendingCategories.map(category => <option key={category}>{category}</option>)}
+          </select>
+        </label>}
         {type === 'commitment' ? <div className="form-grid">
           <MoneyField label="Monthly amount" name="amount" value={item?.amount} />
           <label className="field"><span>Category</span><select name="category" defaultValue={item?.category ?? 'Other'}>
@@ -264,7 +270,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           <MonthField label="First month" name="start" value={item?.start ?? month} />
           <MonthField label="Last month (optional)" name="end" value={item?.end} required={false} />
         </div>
-        {item && <p className="muted form-note">Changes to defaults apply to all months that use them. To record a monthly amount, open its cell.</p>}
+        {item && <p className="muted form-note">To record a monthly amount, open its cell.</p>}
       </>}
       {type === 'payment' && <>
         <p className="muted form-note">{monthLabel(month, 'long')} · due {new Intl.DateTimeFormat('en-MY', {

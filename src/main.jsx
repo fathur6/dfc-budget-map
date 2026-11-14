@@ -318,7 +318,8 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
         <th scope="row"><div className="commitment-row-label">{handle(item, index)}
           <button className="row-label" onClick={() => open({ type: 'category', item })}
           aria-label={'Edit category ' + item.name}>
-          <span className="row-icon"><Wallet size={16} /></span><strong>{item.name}</strong>
+          <span className="row-icon"><Wallet size={16} /></span>
+          <span><strong>{item.name}</strong>{item.category && <small>{item.category}</small>}</span>
         </button></div></th>
         {months.map(value => {
           const entry = categoryMonth(data, item, value)

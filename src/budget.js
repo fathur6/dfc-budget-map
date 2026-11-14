@@ -42,6 +42,8 @@ export function emptyBudget() {
   return { income: null, incomeByMonth: {}, incomeSourcesByMonth: {}, commitments: [], categories: [], payments: {}, spending: {} }
 }
 
+export const spendingCategories = ['Food & household', 'Family support', 'Transport', 'Childcare', 'Insurance', 'Education', 'Subscriptions', 'Other']
+
 export const incomeSourceTypes = ['Gift', 'Project', 'Loan proceeds', 'Other']
 
 export function active(item, month) {

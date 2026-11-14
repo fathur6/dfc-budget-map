@@ -1,4 +1,4 @@
-import { active, incomeSourceTypes } from './budget.js'
+import { active, incomeSourceTypes, spendingCategories } from './budget.js'
 
 const validMonth = month => typeof month === 'string' && /^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/.test(month)
 const validAmount = value => Number.isSafeInteger(value) && value >= 0 && value <= 999999999
@@ -48,7 +48,7 @@ export function readBackup(text) {
       && Number.isInteger(item.day) && item.day >= 1 && item.day <= 31
       && typeof item.category === 'string' && item.category.length <= 40
       && (item.provisional === undefined || typeof item.provisional === 'boolean'))
-    || !validateItems(budget.categories, () => true)
+    || !validateItems(budget.categories, item => item.category === undefined || spendingCategories.includes(item.category))
     || !validateEntries(budget.payments, budget.commitments, (item, month) =>
       (item.status === undefined || ['paid', 'missed'].includes(item.status))
       && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
