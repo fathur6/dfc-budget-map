@@ -136,6 +136,9 @@ h2 { font-size: 19px; font-weight: 670; }
 .tile.scheduled { color: var(--amber); background: #2c2518; border-color: #56472a; }
 .tile.missed { color: var(--red); background: #362027; border-color: #663440; }
 .tile.recorded-spend { color: #b8e2f9; background: #1a2a38; border-color: #365469; }
+.tile.budgeted-spend { flex-direction: column; color: #c1ceda; border: 1px dashed #52616d; }
+.budgeted-spend small { color: var(--muted); font-size: .9em; }
+.budgeted-spend:hover, .budgeted-spend:focus-visible { border-color: var(--green); }
 .recorded-spend[draggable="true"] { cursor: grab; }
 #spending .spending-drop-target { border-color: var(--green); }
 .inactive-tile { border: 1px dashed #33404a; color: var(--dim); }
