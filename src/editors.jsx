@@ -13,6 +13,7 @@ export function Modal({ title, children, close, busy = false }) {
   const ref = useRef(null)
   useEffect(() => {
     ref.current.showModal()
+    ref.current.querySelector('[data-initial-focus]')?.focus()
   }, [])
   return <dialog ref={ref} className="modal" aria-labelledby="modal-title"
     onCancel={event => { event.preventDefault(); if (!busy) close() }}>
@@ -326,7 +327,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}
         <div className="spacer" />
         <button type="button" className="button secondary" disabled={busy} onClick={close}>Cancel</button>
-        <button type="submit" className="button primary" disabled={busy} autoFocus={copying && Boolean(editor.month)}>{busy ? 'Saving…' : copying ? 'Copy value' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
+        <button type="submit" className="button primary" disabled={busy} data-initial-focus={copying && editor.month ? "" : undefined}>{busy ? 'Saving…' : copying ? 'Copy value' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
       </footer>
     </form>
   </Modal>
