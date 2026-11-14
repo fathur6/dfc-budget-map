@@ -91,7 +91,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const titles = {
     income: 'Income for ' + monthLabel(month, 'long'), commitment: item ? 'Edit commitment' : 'Add commitment',
     payment: entry ? item?.name : 'Add payment for ' + item?.name,
-    category: item ? 'Edit spending category' : 'Add spending category',
+    category: item ? 'Edit spending item' : 'Add spending item',
     spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
   }
   async function submit(event) {
@@ -246,7 +246,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
       </>}
       {(type === 'commitment' || type === 'category') && <>
         {type === 'category' && editor.unavailableMonth && <p className="form-note">
-          {monthLabel(editor.unavailableMonth, 'long')} is outside this category’s active months.
+          {monthLabel(editor.unavailableMonth, 'long')} is outside this item’s active months.
           Update the first or last month to include it, then reopen its spending cell.
         </p>}
         <label className="field"><span>Name</span><input name="name" defaultValue={item?.name} maxLength={65} required /></label>
@@ -326,7 +326,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
       </>}
       {type === 'reset' && <p className="muted form-note">This replaces the demo and any changes made to it in this browser with an empty budget.</p>}
       {error && <div className="form-error" role="alert">{error} <button type="button" className="link-button" onClick={reload}>Reload saved budget</button></div>}
-      {confirm && <p className="form-error" role="status">Delete this {type} and all its monthly entries?</p>}
+      {confirm && <p className="form-error" role="status">Delete this {type === 'category' ? 'spending item' : type} and all its monthly entries?</p>}
       <footer className="modal-actions">
         {type === 'spending' && data.spending[key]?.spent != null &&
           <button type="button" className="button secondary" disabled={busy}

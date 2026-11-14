@@ -307,17 +307,17 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
         <p>{reordering ? 'Drag a row by its handle or use the arrow keys.' : 'Select an empty cell to record spending. Drag a recorded amount to copy it within the same row.'}</p></div>
       <div className="map-heading-actions">
         {toggle}
-        <button className="button secondary" onClick={() => open({ type: 'category' })}><Plus size={17} /> Add category</button>
+        <button className="button secondary" onClick={() => open({ type: 'category' })}><Plus size={17} /> Add item</button>
       </div>
     </div>
     {orderError && <p className="form-error" role="alert">{orderError}</p>}
-    <MonthGrid rowHeading="Category" label="Spending across six months" months={months} month={month}
+    <MonthGrid rowHeading="Item" label="Spending across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Total recorded"
       totals={summaries.map(entry => entry.hasSpending ? entry.spent : null)}>
       {categories.map((item, index) => <tr key={item.id} {...rowProps(item)}>
         <th scope="row"><div className="commitment-row-label">{handle(item, index)}
           <button className="row-label" onClick={() => open({ type: 'category', item })}
-          aria-label={'Edit category ' + item.name}>
+          aria-label={'Edit item ' + item.name}>
           <span className="row-icon"><Wallet size={16} /></span>
           <span><strong>{item.name}</strong>{item.category && <small>{item.category}</small>}</span>
         </button></div></th>
@@ -352,14 +352,14 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
               </button>
               : !entry && value >= '2000-01' && value <= '2100-12'
                 ? <button type="button" className="inactive-tile"
-                  aria-label={'Edit category dates for ' + label + ' (outside active months)'}
-                  title="Outside the category’s active months. Click to edit its dates."
+                  aria-label={'Edit item dates for ' + label + ' (outside active months)'}
+                  title="Outside the item’s active months. Click to edit its dates."
                   onClick={() => open({ type: 'category', item, unavailableMonth: value })}>—</button>
                 : <span className="inactive-tile">—</span>}
           </td>
         })}
       </tr>)}
-      {!categories.length && <tr><td colSpan={months.length + 1} className="empty-row">Add a category to record monthly spending.</td></tr>}
+      {!categories.length && <tr><td colSpan={months.length + 1} className="empty-row">Add an item to record monthly spending.</td></tr>}
     </MonthGrid>
   </section>
 }
