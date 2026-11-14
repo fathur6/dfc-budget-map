@@ -14,6 +14,7 @@ import {
 import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
 import { downloadBackup } from './backup.js'
+import { CashFlowChart } from './CashFlowChart.jsx'
 import './styles.css'
 
 const nav = [
@@ -479,6 +480,8 @@ function App() {
   const data = snapshot?.budget
   const hasBudget = Boolean(data)
   const simulatorPage = section === 'simulator'
+  const overviewPage = section === 'overview'
+  const [, pageLabel, PageIcon] = nav.find(([id]) => id === section)
 
   useEffect(() => {
     const syncSection = () => setSection(sectionFromHash())
@@ -487,8 +490,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (section === 'overview' || section === 'simulator') window.scrollTo(0, 0)
-    else document.getElementById(section)?.scrollIntoView({ block: 'start' })
+    window.scrollTo(0, 0)
   }, [section, hasBudget])
 
   const months = rangeOffsets.map(offset => addMonths(month, offset))
@@ -505,7 +507,7 @@ function App() {
       </a>
       <nav aria-label="Main menu">
         {nav.map(([id, label, Icon]) => <button key={id} className={section === id ? 'active' : ''}
-          aria-current={section === id ? (simulatorPage ? 'page' : 'location') : undefined} onClick={() => navigate(id)}><Icon size={18} />{label}</button>)}
+          aria-current={section === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={18} />{label}</button>)}
       </nav>
       <div className="sidebar-bottom">
         <button className="help" onClick={() => setEditor({ type: 'help' })}><CircleHelp size={17} /> How it works</button>
@@ -515,8 +517,7 @@ function App() {
 
     <main className="main" id="overview">
       <header className="topbar">
-        <span className="breadcrumb">{simulatorPage ? <><FlaskConical size={15} /> Simulator</>
-          : <><Grid2X2 size={15} /> Dashboard</>}</span>
+        <span className="breadcrumb"><PageIcon size={15} /> {pageLabel}</span>
         <div className="workspace-actions">
           <span className={'mode ' + (user ? 'cloud' : '')}><Database size={13} /> {user ? 'Supabase' : snapshot?.demo ? 'Demo · browser' : 'Browser storage'}</span>
           {supabase && user !== undefined && (user
@@ -541,9 +542,9 @@ function App() {
         {data && !simulatorPage && <>
           <section className="page-heading" aria-labelledby="page-title">
             <div>
-              <p className="eyebrow"><span className="live-dot" /> Monthly overview</p>
-              <h1 id="page-title">{monthLabel(month, 'long')}</h1>
-              <p className="page-description">See what’s committed, what’s paid, and what’s left.</p>
+              {overviewPage && <p className="eyebrow"><span className="live-dot" /> Monthly overview</p>}
+              <h1 id="page-title">{overviewPage ? monthLabel(month, 'long') : pageLabel}</h1>
+              <p className="page-description">{overviewPage ? 'See what’s committed, what’s paid, and what’s left.' : monthLabel(month, 'long')}</p>
             </div>
             <div className="month-controls">
               <button className="button secondary this-month" onClick={() => setMonth(current)} disabled={month === current}>This month</button>
@@ -555,6 +556,7 @@ function App() {
             </div>
           </section>
 
+          {overviewPage && <>
           {data.notes?.length > 0 && <details className="source-notes">
             <summary>Screenshot import assumptions</summary>
             <ul>{data.notes.map(note => <li key={note}>{note}</li>)}</ul>
@@ -584,11 +586,13 @@ function App() {
             {summary.missedCount > 0 && <span className="missed-count">{summary.missedCount} missed</span>}
           </div>}
 
+          <CashFlowChart months={months} summaries={summaries} month={month} />
           <MonthlySummary months={months} month={month} current={current} summaries={summaries} chooseMonth={setMonth} open={setEditor} />
-          <CommitmentMap data={data} months={months} month={month} current={current} today={today}
-            summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
-          <Spending data={data} months={months} month={month} current={current}
-            summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
+          </>}
+          {section === 'commitments' && <CommitmentMap data={data} months={months} month={month} current={current} today={today}
+            summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />}
+          {section === 'spending' && <Spending data={data} months={months} month={month} current={current}
+            summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />}
         </>}
       </div>
     </main>

@@ -291,3 +291,26 @@ body {
 .row-grip:active { cursor: grabbing; }
 .drop-before > :is(th, td) { box-shadow: inset 0 2px var(--green); }
 .drop-after > :is(th, td) { box-shadow: inset 0 -2px var(--green); }
+
+.cash-chart { padding: 0 18px 18px; }
+.cash-legend { display: flex; gap: 7px; flex-wrap: wrap; }
+.cash-legend button[aria-pressed="false"] { opacity: .55; }
+.cash-legend i { width: 9px; height: 9px; border-radius: 2px; }
+.cash-scroll { overflow-x: auto; }
+.cash-plot { position: relative; min-width: 540px; height: 230px; margin: 24px 0 44px 86px; }
+.cash-axis { position: absolute; inset-inline: 0; border-top: 1px solid var(--line); pointer-events: none; }
+.cash-axis.zero { border-color: #7a8d9e; }
+.cash-axis span { position: absolute; right: calc(100% + 9px); transform: translateY(-50%); color: var(--muted); font: 10px var(--mono); white-space: nowrap; }
+.cash-months { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.cash-month { position: relative; border-radius: 6px; min-width: 0; }
+.cash-month:hover, .cash-month[aria-pressed="true"] { background: #8bb3c814; }
+.cash-bars { position: absolute; inset: 0 10%; display: flex; justify-content: center; gap: 4px; }
+.cash-bar-slot { position: relative; flex: 1; max-width: 23px; }
+.cash-bar { position: absolute; inset-inline: 0; border-radius: 3px; }
+.cash-month-label { position: absolute; inset-inline: 0; top: calc(100% + 10px); font: 11px var(--mono); white-space: nowrap; color: var(--muted); }
+.cash-month[aria-pressed="true"] .cash-month-label { color: var(--green); }
+.cash-details { border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; }
+.cash-details dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 9px 0 0; }
+.cash-details dt { color: var(--muted); }
+.cash-details dd { margin: 4px 0 0; font-family: var(--mono); }
+.cash-negative { color: var(--red); }
