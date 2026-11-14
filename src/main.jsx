@@ -594,9 +594,9 @@ function App() {
           <CashFlowChart months={months} summaries={summaries} month={month} />
           <MonthlySummary months={months} month={month} current={current} summaries={summaries} chooseMonth={setMonth} open={setEditor} />
           </>}
-          {section === 'commitments' && <CommitmentMap data={data} months={months} month={month} current={current} today={today}
+          {(overviewPage || section === 'commitments') && <CommitmentMap data={data} months={months} month={month} current={current} today={today}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />}
-          {section === 'spending' && <Spending data={data} months={months} month={month} current={current}
+          {(overviewPage || section === 'spending') && <Spending data={data} months={months} month={month} current={current}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />}
         </>}
       </div>
