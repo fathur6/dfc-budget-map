@@ -139,6 +139,7 @@ function CommitmentBreakdown({ month, summary, close }) {
 }
 
 function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open, save }) {
+  const [reordering, setReordering] = useState(false)
   const [draggedRow, setDraggedRow] = useState(null)
   const [dropRow, setDropRow] = useState(null)
   const [savingOrder, setSavingOrder] = useState(false)
@@ -157,7 +158,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
 
   async function moveRow(from, to, after) {
     clearDrag()
-    if (savingOrder || from === to) return
+    if (!reordering || savingOrder || from === to) return
     const item = data.commitments.find(entry => entry.id === from)
     const commitments = data.commitments.filter(entry => entry.id !== from)
     const target = commitments.findIndex(entry => entry.id === to)
@@ -177,8 +178,15 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
   return <section id="commitments" className="panel map-panel" aria-labelledby="map-title">
     <div className="panel-heading">
       <div><div className="section-title"><Layers3 size={20} /><h2 id="map-title">Commitment map</h2></div>
-        <p>Drag a row by its handle to reorder. Select a cell to update a payment.</p></div>
-      <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
+        <p>{reordering ? 'Drag a row by its handle or use the arrow keys.' : 'Select a cell to add or update a payment.'}</p></div>
+      <div className="map-heading-actions">
+        <button type="button" className={'button ' + (reordering ? 'primary' : 'secondary')}
+          aria-pressed={reordering} disabled={savingOrder || (!reordering && rows.length < 2)}
+          onClick={() => { clearDrag(); setReordering(!reordering) }}>
+          <GripVertical size={16} /> Reorder rows
+        </button>
+        <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
+      </div>
     </div>
     {orderError && <p className="form-error" role="alert">{orderError}</p>}
     <MonthGrid rowHeading="Commitment" label="Commitments across six months" months={months} month={month}
@@ -206,7 +214,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             void moveRow(draggedRow, item.id, afterMidpoint(event))
           }}>
           <th scope="row"><div className="commitment-row-label">
-            <button type="button" className="icon-button row-grip" draggable={!savingOrder}
+            {reordering && <button type="button" className="icon-button row-grip" draggable={!savingOrder}
               disabled={savingOrder} aria-label={'Reorder ' + item.name + ' with Up or Down'}
               title="Drag to reorder or press Up or Down"
               onDragStart={event => {
@@ -221,7 +229,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
                 const after = event.key === 'ArrowDown'
                 const target = rows[index + (after ? 1 : -1)]
                 if (target) void moveRow(item.id, target.id, after)
-              }}><GripVertical size={16} /></button>
+              }}><GripVertical size={16} /></button>}
             <button className="row-label" onClick={() => open({ type: 'commitment', item })} aria-label={'Edit ' + item.name}>
             <span className="row-icon"><Icon size={16} /></span><span><strong>{item.name}</strong><small>{item.provisional ? 'Verify schedule' : item.category} · due {item.day}</small></span>
           </button></div></th>
