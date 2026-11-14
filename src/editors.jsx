@@ -245,6 +245,10 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         </fieldset>
       </>}
       {(type === 'commitment' || type === 'category') && <>
+        {type === 'category' && editor.unavailableMonth && <p className="form-note">
+          {monthLabel(editor.unavailableMonth, 'long')} is outside this category’s active months.
+          Update the first or last month to include it, then reopen its spending cell.
+        </p>}
         <label className="field"><span>Name</span><input name="name" defaultValue={item?.name} maxLength={65} required /></label>
         {type === 'commitment' ? <div className="form-grid">
           <MoneyField label="Monthly amount" name="amount" value={item?.amount} />

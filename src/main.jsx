@@ -326,7 +326,12 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open }
                 onClick={() => open({ type: 'spending', item, month: value })}>
                 {money(entry.spent)}
               </button>
-              : <span className="inactive-tile" title="Category inactive this month">—</span>}
+              : !entry && value >= '2000-01' && value <= '2100-12'
+                ? <button type="button" className="inactive-tile"
+                  aria-label={'Edit category dates for ' + label + ' (outside active months)'}
+                  title="Outside the category’s active months. Click to edit its dates."
+                  onClick={() => open({ type: 'category', item, unavailableMonth: value })}>—</button>
+                : <span className="inactive-tile">—</span>}
           </td>
         })}
       </tr>)}
