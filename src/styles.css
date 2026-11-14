@@ -305,12 +305,14 @@ body {
 .cash-month { position: relative; border-radius: 6px; min-width: 0; }
 .cash-month:hover, .cash-month[aria-pressed="true"] { background: #8bb3c814; }
 .cash-bars { position: absolute; inset: 0 14%; pointer-events: none; }
-.cash-bar { position: absolute; width: 36%; }
+.cash-bar { pointer-events: auto; position: absolute; width: 36%; }
 .cash-income { left: 8%; background: linear-gradient(180deg, #59dbbf, #227d70); border-radius: 5px 5px 0 0; }
 .cash-outflow { right: 8%; }
 .cash-connector { position: absolute; left: 44%; right: 44%; border-top: 1px dashed #9baebb; }
 .cash-balance { position: absolute; inset-inline: 0; z-index: 1; border-block: 1px solid currentColor; }
+.cash-balance-hover { position: absolute; inset: 0 44%; pointer-events: auto; }
 .cash-balance.surplus { color: #66e5a9; background: #45dc9038; }
+.cash-balance.deficit .cash-balance-hover { inset-inline: 0 44%; }
 .cash-balance.deficit { color: #ff8299; background: #ff517f40; }
 .cash-details dd small { color: var(--muted); }
 .cash-month-label { position: absolute; inset-inline: 0; top: calc(100% + 10px); font: 11px var(--mono); white-space: nowrap; color: var(--muted); }

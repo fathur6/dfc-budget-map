@@ -62,18 +62,20 @@ export function CashFlowChart({ months, summaries, month, title = 'Six-month cas
                 onClick={() => inspect(value)}>
                 <span className="cash-bars" aria-hidden="true">
                   {cashInflow != null && isVisible('cashInflow') && <>
-                    <span className="cash-bar cash-income" style={band(0, cashInflow)} />
+                    <span className="cash-bar cash-income" title={'Income ' + money(cashInflow)} style={band(0, cashInflow)} />
                     <span className="cash-connector" style={{ top: percent(cashInflow) + '%' }} />
                   </>}
-                  {isVisible('committed') && <span className="cash-bar cash-outflow"
+                  {isVisible('committed') && <span className="cash-bar cash-outflow" title={'Commitments ' + money(committed)}
                     style={{ ...band(start, afterCommitments), background: series[1].color }} />}
-                  {isVisible('spent') && <span className="cash-bar cash-outflow"
+                  {isVisible('spent') && <span className="cash-bar cash-outflow" title={'Spending ' + money(spent)}
                     style={{ ...band(afterCommitments, afterCommitments - spent), background: series[2].color }} />}
-                  {projected && isVisible('proposed') && <span className="cash-bar cash-outflow"
+                  {projected && isVisible('proposed') && <span className="cash-bar cash-outflow" title={'New payment ' + money(proposed)}
                     style={{ ...band(afterCommitments - spent, afterCommitments - spent - proposed), background: series[3].color }} />}
                   {balance != null && balance !== 0 && isVisible('balance') &&
                     <span className={'cash-balance ' + (balance < 0 ? 'deficit' : 'surplus')}
-                      style={band(0, balance)} />}
+                      style={band(0, balance)}>
+                      <span className="cash-balance-hover" title={(balance < 0 ? 'Deficit ' : 'Surplus ') + money(balance)} />
+                    </span>}
                 </span>
                 <span className="cash-month-label">{monthLabel(value)}</span>
               </button>
