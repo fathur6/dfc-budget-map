@@ -296,7 +296,8 @@ body {
 .cash-legend { display: flex; gap: 7px; flex-wrap: wrap; }
 .cash-legend button[aria-pressed="false"] { opacity: .55; }
 .cash-legend i { width: 9px; height: 9px; border-radius: 2px; }
-.cash-scroll { overflow-x: auto; }
+.cash-navigation { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; margin-top: 10px; }
+.cash-scroll { min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-color: #455562 #13191f; }
 .cash-plot { position: relative; min-width: 540px; height: 230px; margin: 24px 0 44px 86px; }
 .cash-axis { position: absolute; inset-inline: 0; border-top: 1px solid var(--line); pointer-events: none; }
 .cash-axis.zero { border-color: #7a8d9e; }

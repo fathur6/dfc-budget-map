@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Activity } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Activity, ChevronLeft, ChevronRight } from 'lucide-react'
 import { money, monthLabel } from './budget.js'
 
 const baseSeries = [
@@ -10,6 +10,16 @@ const baseSeries = [
 ]
 
 export function CashFlowChart({ months, summaries, month, title = 'Six-month cash flow', projected = false }) {
+  const scrollRef = useRef(null)
+  const [scrollEdges, setScrollEdges] = useState({ start: true, end: false })
+  function scrollMonths(direction) {
+    const viewport = scrollRef.current
+    const plot = viewport.querySelector('.cash-plot')
+    const step = plot.offsetWidth / months.length
+    const visibleMonths = Math.max(1, Math.floor((viewport.clientWidth - 86) / step + 0.01))
+    viewport.scrollBy({ left: direction * visibleMonths * step })
+  }
+
   const [inspectedMonth, inspect] = useState(null)
   const [hidden, setHidden] = useState([])
   const series = projected ? [...baseSeries.slice(0, -1), { key: 'proposed', label: 'New payment', color: '#bd9bfa' }, baseSeries.at(-1)] : baseSeries
@@ -48,8 +58,18 @@ export function CashFlowChart({ months, summaries, month, title = 'Six-month cas
           <i style={{ background: color }} />{label}
         </button>)}
       </div>
-      <div className="cash-scroll" tabIndex={0} role="region" aria-label={title + ' chart'}>
-        <div className="cash-plot" style={{ minWidth: months.length * 90 + 'px', width: months.length > 6 ? `calc((100% - 86px) * ${months.length / 6})` : undefined }}>
+      {projected && months.length > 6 && <div className="cash-navigation">
+        <button type="button" className="button secondary" disabled={scrollEdges.start}
+          onClick={() => scrollMonths(-1)}><ChevronLeft size={16} /> Earlier months</button>
+        <button type="button" className="button secondary" disabled={scrollEdges.end}
+          onClick={() => scrollMonths(1)}>Later months <ChevronRight size={16} /></button>
+      </div>}
+      <div className="cash-scroll" ref={scrollRef} tabIndex={0} role="region" aria-label={title + ' chart'}
+        onScroll={event => {
+          const { scrollLeft, scrollWidth, clientWidth } = event.currentTarget
+          setScrollEdges({ start: scrollLeft <= 1, end: scrollLeft + clientWidth >= scrollWidth - 1 })
+        }}>
+        <div className="cash-plot" style={{ minWidth: months.length * 90 + 'px', width: months.length > 6 ? `calc(${months.length / 6 * 100}% - ${months.length / 6 * 86}px)` : undefined }}>
           {ticks.map(tick => <div key={tick} className={'cash-axis' + (tick === 0 ? ' zero' : '')}
             style={{ top: percent(tick) + '%' }} aria-hidden="true"><span>{money(tick).replace(/\.00$/, '')}</span></div>)}
           <div className="cash-months" style={{ gridTemplateColumns: `repeat(${months.length}, minmax(0, 1fr))` }}>
