@@ -59,6 +59,28 @@ test('uses only recorded spending for the summary balance and distinguishes zero
   assert.equal(monthSummary(changed, '2026-12', today).recordedBalance, null)
 })
 
+test('adds extra income and loan proceeds to cash flow for the selected month only', () => {
+  const changed = structuredClone(data)
+  changed.incomeByMonth['2026-11'] = 800000
+  changed.incomeSourcesByMonth['2026-11'] = [
+    { type: 'Gift', name: '', amount: 25000 },
+    { type: 'Project', name: 'Workshop', amount: 120000 },
+    { type: 'Loan proceeds', name: '', amount: 500000 },
+  ]
+  const result = monthSummary(changed, '2026-11', today)
+  assert.equal(result.income, 945000)
+  assert.equal(result.loanProceeds, 500000)
+  assert.equal(result.cashInflow, 1445000)
+  assert.equal(result.balance, 827000)
+  assert.equal(result.recordedBalance, 941000)
+  assert.equal(monthSummary(changed, '2026-12', today).cashInflow, 850000)
+  assert.equal(simulate(changed, { start: '2026-11', duration: 1, amount: 10000, buffer: 0 }, today).remaining, 295000)
+  changed.incomeByMonth['2026-11'] = 0
+  assert.equal(monthSummary(changed, '2026-11', today).cashInflow, 645000)
+  changed.incomeByMonth['2026-11'] = null
+  assert.equal(monthSummary(changed, '2026-11', today).balance, null)
+})
+
 test('includes a one-off payment outside the schedule in only its selected month', () => {
   const changed = structuredClone(data)
   const device = changed.commitments.find(item => item.id === 'plan')
@@ -137,4 +159,21 @@ test('backups round-trip and reject invalid money and orphan monthly records', (
   assert.deepEqual(readBackup(serialize(data)), data)
   assert.throws(() => readBackup(serialize({ ...data, income: 1.23 })), /valid DFC/)
   assert.throws(() => readBackup(serialize({ ...data, payments: { 'unknown:2026-11': { status: 'paid' } } })), /valid DFC/)
+})
+
+test('accepts older backups and validates any monthly income sources', () => {
+  const serialize = budget => JSON.stringify({ format: 'dfc-budget-map', version: 1, budget })
+  const { incomeSourcesByMonth, ...legacy } = data
+  assert.deepEqual(readBackup(serialize(legacy)), legacy)
+  assert.equal(monthSummary(legacy, '2026-11', today).cashInflow, 850000)
+  const sources = [{ type: 'Project', name: 'Workshop', amount: 75000 }]
+  const changed = { ...legacy, incomeSourcesByMonth: { '2026-12': sources } }
+  assert.deepEqual(readBackup(serialize(changed)), changed)
+  for (const invalid of [
+    { '2026-13': sources },
+    { '2026-12': [{ ...sources[0], amount: -1 }] },
+    { '2026-12': [{ ...sources[0], type: 'Invalid' }] },
+  ]) {
+    assert.throws(() => readBackup(serialize({ ...legacy, incomeSourcesByMonth: invalid })), /valid DFC/)
+  }
 })

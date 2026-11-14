@@ -148,9 +148,11 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .monthly-balance.surplus { color: var(--green); }
 .monthly-balance.deficit { color: var(--red); }
 .monthly-balance small { font-size: 10px; }
-.commitment-detail-button { padding: 5px; border-radius: 4px; font: inherit; color: inherit; }
-.commitment-detail-button small, .transfer-breakdown small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
-.commitment-detail-button:hover small, .commitment-detail-button:focus-visible small { color: var(--green); }
+.summary-detail-button { min-height: 30px; padding: 5px; border-radius: 4px; font: inherit; color: inherit; }
+.summary-detail-button small, .transfer-breakdown small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.summary-detail-button svg { vertical-align: middle; color: var(--muted); }
+.summary-detail-button:hover, .summary-detail-button:focus-visible,
+.summary-detail-button:hover :is(svg, small), .summary-detail-button:focus-visible :is(svg, small) { color: var(--green); }
 .payment-amount { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .tile.moved-payment { flex-direction: column; gap: 3px; }
 .moved-payment small { font-size: .9em; }
@@ -192,6 +194,14 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .spacer { flex: 1; }
 .muted { color: var(--muted); }
 .form-note, .help-copy { font-size: 13px; line-height: 1.55; }
+.income-sources, .income-source { min-width: 0; margin: 0; }
+.income-sources { display: grid; gap: 10px; border: 0; border-top: 1px solid var(--line); padding: 8px 0 0; }
+.income-sources > legend { padding-right: 8px; font-size: 13px; font-weight: 650; }
+.income-sources > button { justify-self: start; }
+.income-source { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 8px; border: 1px solid var(--line); border-radius: 7px; padding: 8px; }
+.income-source > legend { color: var(--muted); font-size: 11px; padding-inline: 4px; }
+.income-source-name { grid-column: 1 / 3; }
+.income-source > button { grid-column: 3; grid-row: 1; min-height: 38px; }
 .form-error { padding: 9px; border-radius: 6px; background: #362027; color: #ffb2bc; font-size: 12px; line-height: 1.4; }
 .link-button { text-decoration: underline; padding: 1px 4px; }
 .status-picker { display: flex; flex-wrap: wrap; gap: 7px; border: 0; padding: 0; margin: 0; }

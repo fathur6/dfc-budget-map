@@ -79,9 +79,15 @@ function BalanceCell({ balance }) {
 
 function MonthlySummary({ months, month, current, summaries, chooseMonth, open }) {
   const rows = [
-    { label: 'Income', value: entry => money(entry.income) },
+    { label: 'Income', value: (entry, value) => <button type="button" className="summary-detail-button"
+      aria-label={'Edit income for ' + monthLabel(value, 'long') + ', ' + money(entry.income)}
+      disabled={value < '2000-01' || value > '2100-12'} onClick={() => open({ type: 'income', month: value })}>
+      {money(entry.income)} <Pencil size={12} aria-hidden="true" />
+    </button> },
+    ...(summaries.some(entry => entry.loanProceeds > 0)
+      ? [{ label: 'Loan proceeds', value: entry => money(entry.loanProceeds || null) }] : []),
     { label: 'Commitment', value: (entry, value) => entry.movedIn.length || entry.movedOut.length
-      ? <button type="button" className="commitment-detail-button"
+      ? <button type="button" className="summary-detail-button"
         aria-label={'Commitment breakdown for ' + monthLabel(value, 'long') + ', ' + money(entry.committed)}
         onClick={() => open({ type: 'commitment-breakdown', month: value })}>
         {money(entry.committed)}<small>View transfers</small>
@@ -413,8 +419,11 @@ function App() {
             <ul>{data.notes.map(note => <li key={note}>{note}</li>)}</ul>
           </details>}
           <div className="metrics">
-            <Metric icon={ArrowDownLeft} label="Take-home income" value={summary.income} onEdit={() => setEditor({ type: 'income' })}
-              note={summary.income == null ? 'Set income to calculate your balance' : data.incomeByMonth[month] == null ? 'Default monthly income' : 'Using this month’s override'} />
+            <Metric icon={ArrowDownLeft} label="Cash inflow" value={summary.cashInflow} onEdit={() => setEditor({ type: 'income' })}
+              note={summary.income == null ? 'Set base income to calculate your balance'
+                : summary.loanProceeds ? <>{money(summary.loanProceeds)} in loan proceeds</>
+                : summary.otherIncome ? <>{money(summary.otherIncome)} in additional income</>
+                : data.incomeByMonth[month] == null ? 'Default monthly income' : 'Using this month’s override'} />
             <Metric icon={CreditCard} label="Commitments" value={summary.committed} tone="amber"
               note={<><strong>{money(summary.outstanding)}</strong> unpaid this month</>} />
             <Metric icon={Wallet} label="Spending budget" value={summary.planned} tone="blue"
@@ -449,11 +458,11 @@ function App() {
       saved={() => { setEditor(null); setNotice('Sign-in password saved') }} />}
     {editor?.type === 'help' && <Modal title="How it works" close={() => setEditor(null)}>
       <div className="editor help-copy">
-        <p>Enter take-home income, recurring commitments and spending categories. Set a first and last month for instalments or use the same month twice for a one-off bill.</p>
+        <p>Open an income cell to enter base income and additional sources for that month. Record loan proceeds there and add repayments in the Commitment Map. Set the same first and last month for a one-off bill.</p>
         <p>Each commitment cell stays in its original due month. Choose a different payment month when planning or recording an early or late payment. Open View transfers in Monthly Summary to see which payments were moved.</p>
         <p>Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
-        <p>Projected balance equals income minus the commitments allocated to that month and forecast spending. Each category uses whichever is higher, its budget or recorded spending.</p>
-        <p>The simulator follows the payment months you choose. It charges earlier missed payments that still need to be covered to the first month of the scenario.</p>
+        <p>Projected balance equals income plus loan proceeds, minus commitments and forecast spending. Each spending category uses whichever is higher, its budget or recorded spending.</p>
+        <p>The simulator excludes loan proceeds and follows the payment months you choose. It charges earlier missed payments that still need to be covered to the first month of the scenario.</p>
         <p>Browser budgets stay on this device. Signing in opens a separate Supabase budget.</p>
       </div>
     </Modal>}

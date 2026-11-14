@@ -39,8 +39,10 @@ export function inputMoney(sen) {
 }
 
 export function emptyBudget() {
-  return { income: null, incomeByMonth: {}, commitments: [], categories: [], payments: {}, spending: {} }
+  return { income: null, incomeByMonth: {}, incomeSourcesByMonth: {}, commitments: [], categories: [], payments: {}, spending: {} }
 }
+
+export const incomeSourceTypes = ['Gift', 'Project', 'Loan proceeds', 'Other']
 
 export function active(item, month) {
   return month >= item.start && (!item.end || month <= item.end)
@@ -78,7 +80,12 @@ export function monthSummary(data, month, today) {
   const movedIn = movedInstallments(data, today).filter(entry => entry.paymentMonth === month)
   const commitments = [...original.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
   const categories = data.categories.map(item => categoryMonth(data, item, month)).filter(Boolean)
-  const income = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
+  const baseIncome = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
+  const incomeSources = data.incomeSourcesByMonth?.[month] ?? []
+  const otherIncome = incomeSources.reduce((total, source) => total + (source.type === 'Loan proceeds' ? 0 : source.amount), 0)
+  const loanProceeds = incomeSources.reduce((total, source) => total + (source.type === 'Loan proceeds' ? source.amount : 0), 0)
+  const income = baseIncome == null ? null : baseIncome + otherIncome
+  const cashInflow = income == null ? null : income + loanProceeds
   const committed = commitments.reduce((total, entry) => total + entry.amount, 0)
   const paid = commitments.filter(entry => entry.status === 'paid')
   const paidTotal = paid.reduce((total, entry) => total + entry.amount, 0)
@@ -90,12 +97,12 @@ export function monthSummary(data, month, today) {
   const hasSpending = categories.some(entry => entry.spent != null)
   const spendingForecast = categories.reduce((total, entry) => total + Math.max(entry.planned, entry.spent ?? 0), 0)
   return {
-    income, committed, paidTotal, planned, spent, spendingForecast, hasSpending, movedIn, movedOut,
+    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, planned, spent, spendingForecast, hasSpending, movedIn, movedOut,
     scheduledCommitment: original.reduce((total, entry) => total + entry.amount, 0),
     count: commitments.length, paidCount: paid.length, missedCount: missed.length,
     outstanding: committed - paidTotal,
-    balance: income == null ? null : income - committed - spendingForecast,
-    recordedBalance: income == null || !hasSpending ? null : income - committed - spent,
+    balance: cashInflow == null ? null : cashInflow - committed - spendingForecast,
+    recordedBalance: cashInflow == null || !hasSpending ? null : cashInflow - committed - spent,
   }
 }
 
@@ -140,9 +147,9 @@ export function simulate(data, { start, duration, amount, buffer }, today) {
   let tightest = null
   for (let offset = 0; offset < duration; offset++) {
     const month = addMonths(start, offset)
-    const { balance } = monthSummary(data, month, today)
+    const { balance, loanProceeds } = monthSummary(data, month, today)
     if (balance == null) return { missing: month, arrears }
-    const remaining = balance - amount - (offset === 0 ? arrears : 0)
+    const remaining = balance - loanProceeds - amount - (offset === 0 ? arrears : 0)
     if (!tightest || remaining < tightest.remaining) tightest = { month, remaining }
   }
   return {

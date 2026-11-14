@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Check, Clock3, X } from 'lucide-react'
-import { active, categoryMonth, dueDate, inputMoney, installment, money, monthLabel, parseMoney, paymentKey } from './budget.js'
+import { AlertTriangle, Check, Clock3, Plus, X } from 'lucide-react'
+import { active, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey } from './budget.js'
 import { readBackup } from './backup.js'
 
 export const statuses = {
@@ -69,6 +69,9 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const [confirm, setConfirm] = useState(false)
   const { type, item } = editor
   const data = snapshot.budget
+  const [incomeRows, setIncomeRows] = useState(() => (type === 'income' ? data.incomeSourcesByMonth?.[month] ?? [] : [])
+    .map((source, index) => ({ ...source, key: String(index) })))
+  const newIncomeRow = useRef(null)
   const key = item && paymentKey(item.id, month)
   const copying = type === 'copy-spending'
   const [targetMonth, setTargetMonth] = useState(editor.month ?? '')
@@ -85,7 +88,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const due = type === 'payment' ? dueDate(month, validDay ? day : item.day) : null
   const expired = due && due < today && !item?.provisional
   const titles = {
-    income: 'Set monthly income', commitment: item ? 'Edit commitment' : 'Add commitment',
+    income: 'Income for ' + monthLabel(month, 'long'), commitment: item ? 'Edit commitment' : 'Add commitment',
     payment: entry ? item?.name : 'Add payment for ' + item?.name,
     category: item ? 'Edit spending category' : 'Add spending category',
     spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
@@ -114,6 +117,13 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         if (form.has('unknown')) next.incomeByMonth[month] = null
         else if (income == null) delete next.incomeByMonth[month]
         else next.incomeByMonth[month] = income
+        const sources = incomeRows.map(({ key }) => ({
+          type: get('source-type-' + key),
+          name: get('source-name-' + key).trim(),
+          amount: readAmount(get('source-amount-' + key), { positive: true }),
+        }))
+        if (sources.length) (next.incomeSourcesByMonth ??= {})[month] = sources
+        else if (next.incomeSourcesByMonth) delete next.incomeSourcesByMonth[month]
       }
       if (type === 'commitment' || type === 'category') {
         const collection = type === 'commitment' ? 'commitments' : 'categories'
@@ -184,9 +194,37 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     <form className="editor" onSubmit={submit}>
       {type === 'income' && <>
         <MoneyField label="Default monthly take-home income" name="income" value={data.income} required={false} placeholder="Enter income" />
-        <MoneyField label={monthLabel(month, 'long') + ' override (optional)'} name="override" value={data.incomeByMonth[month]} required={false} placeholder="Use default" />
-        <label className="check-field"><input type="checkbox" name="unknown" defaultChecked={data.incomeByMonth[month] === null} /> Income is unknown this month</label>
-        <p className="muted form-note">Use the default by leaving the override empty and the box unchecked.</p>
+        <MoneyField label="Base income override (optional)" name="override" value={data.incomeByMonth[month]} required={false} placeholder="Use default" />
+        <label className="check-field"><input type="checkbox" name="unknown" defaultChecked={data.incomeByMonth[month] === null} /> Base income is unknown this month</label>
+        <p className="muted form-note">Enter RM 0 as the override if this month has only additional sources.</p>
+        <fieldset className="income-sources">
+          <legend>Additional sources</legend>
+          {incomeRows.map((source, index) => <fieldset className="income-source" key={source.key}>
+            <legend>Source {index + 1}</legend>
+            <label className="field"><span>Type</span>
+              <select name={'source-type-' + source.key} defaultValue={source.type} ref={element => {
+                if (element && newIncomeRow.current === source.key) {
+                  newIncomeRow.current = null
+                  element.focus()
+                }
+              }}>
+                {incomeSourceTypes.map(type => <option key={type}>{type}</option>)}
+              </select>
+            </label>
+            <MoneyField label="Amount" name={'source-amount-' + source.key} value={source.amount} />
+            <label className="field income-source-name"><span>Description (optional)</span>
+              <input name={'source-name-' + source.key} defaultValue={source.name} maxLength={65} />
+            </label>
+            <button type="button" className="icon-button" aria-label={'Remove source ' + (index + 1)} disabled={busy}
+              onClick={() => setIncomeRows(rows => rows.filter(row => row.key !== source.key))}><X size={17} /></button>
+          </fieldset>)}
+          <button type="button" className="button secondary" disabled={busy} onClick={() => {
+            const key = crypto.randomUUID()
+            newIncomeRow.current = key
+            setIncomeRows(rows => [...rows, { key, type: 'Gift' }])
+          }}><Plus size={16} /> Add source</button>
+          <p className="muted form-note">Loan proceeds increase this month’s cash balance. Record repayments in the Commitment Map. The simulator excludes loan proceeds.</p>
+        </fieldset>
       </>}
       {(type === 'commitment' || type === 'category') && <>
         <label className="field"><span>Name</span><input name="name" defaultValue={item?.name} maxLength={65} required /></label>
