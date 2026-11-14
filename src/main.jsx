@@ -138,19 +138,12 @@ function CommitmentBreakdown({ month, summary, close }) {
   </Modal>
 }
 
-function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open, save }) {
+function useRowReorder(data, collection, rows, save) {
   const [reordering, setReordering] = useState(false)
   const [draggedRow, setDraggedRow] = useState(null)
   const [dropRow, setDropRow] = useState(null)
   const [savingOrder, setSavingOrder] = useState(false)
   const [orderError, setOrderError] = useState('')
-  const carriedByMonth = new Map(months.map((value, index) => [
-    value, summaries[index].movedIn.filter(entry => entry.partial),
-  ]))
-  const rows = data.commitments.filter(item => months.some(value =>
-    active(item, value) || data.payments[paymentKey(item.id, value)]?.oneOff
-    || carriedByMonth.get(value).some(entry => entry.id === item.id)
-  ))
   function clearDrag() {
     setDraggedRow(null)
     setDropRow(null)
@@ -159,32 +152,90 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
   async function moveRow(from, to, after) {
     clearDrag()
     if (!reordering || savingOrder || from === to) return
-    const item = data.commitments.find(entry => entry.id === from)
-    const commitments = data.commitments.filter(entry => entry.id !== from)
-    const target = commitments.findIndex(entry => entry.id === to)
+    const item = data[collection].find(entry => entry.id === from)
+    const ordered = data[collection].filter(entry => entry.id !== from)
+    const target = ordered.findIndex(entry => entry.id === to)
     if (!item || target < 0) return
-    commitments.splice(target + Number(after), 0, item)
+    ordered.splice(target + Number(after), 0, item)
     setSavingOrder(true)
     setOrderError('')
     try {
-      await save({ ...data, commitments })
+      await save({ ...data, [collection]: ordered })
     } catch (failure) {
-      setOrderError(failure.message || 'Could not save the commitment order.')
+      setOrderError(failure.message || 'Could not save the row order.')
     } finally {
       setSavingOrder(false)
     }
   }
+
+  function afterMidpoint(event) {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    return event.clientY > bounds.top + bounds.height / 2
+  }
+
+  function rowProps(item) {
+    return {
+      className: dropRow?.id === item.id ? (dropRow.after ? 'drop-after' : 'drop-before') : undefined,
+      onDragOver: event => {
+        if (!draggedRow || draggedRow === item.id || savingOrder) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        setDropRow({ id: item.id, after: afterMidpoint(event) })
+      },
+      onDragLeave: event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDropRow(null)
+      },
+      onDrop: event => {
+        if (!draggedRow || draggedRow === item.id || savingOrder) return
+        event.preventDefault()
+        void moveRow(draggedRow, item.id, afterMidpoint(event))
+      },
+    }
+  }
+
+  function handle(item, index) {
+    return reordering && <button type="button" className="icon-button row-grip" draggable={!savingOrder}
+      disabled={savingOrder} aria-label={'Reorder ' + item.name + ' with Up or Down'}
+      title="Drag to reorder or press Up or Down"
+      onDragStart={event => {
+        event.dataTransfer.effectAllowed = 'move'
+        event.dataTransfer.setData('text/plain', 'Budget row')
+        setDraggedRow(item.id)
+      }}
+      onDragEnd={clearDrag}
+      onKeyDown={event => {
+        if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return
+        event.preventDefault()
+        const after = event.key === 'ArrowDown'
+        const target = rows[index + (after ? 1 : -1)]
+        if (target) void moveRow(item.id, target.id, after)
+      }}><GripVertical size={16} /></button>
+  }
+
+  const toggle = <button type="button" className={'button ' + (reordering ? 'primary' : 'secondary')}
+      aria-pressed={reordering} disabled={savingOrder || (!reordering && rows.length < 2)}
+      onClick={() => { clearDrag(); setReordering(!reordering) }}>
+      <GripVertical size={16} /> Reorder rows
+    </button>
+  return { reordering, orderError, rowProps, handle, toggle }
+}
+
+function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open, save }) {
+  const carriedByMonth = new Map(months.map((value, index) => [
+    value, summaries[index].movedIn.filter(entry => entry.partial),
+  ]))
+  const rows = data.commitments.filter(item => months.some(value =>
+    active(item, value) || data.payments[paymentKey(item.id, value)]?.oneOff
+    || carriedByMonth.get(value).some(entry => entry.id === item.id)
+  ))
+  const { reordering, orderError, rowProps, handle, toggle } = useRowReorder(data, 'commitments', rows, save)
 
   return <section id="commitments" className="panel map-panel" aria-labelledby="map-title">
     <div className="panel-heading">
       <div><div className="section-title"><Layers3 size={20} /><h2 id="map-title">Commitment map</h2></div>
         <p>{reordering ? 'Drag a row by its handle or use the arrow keys.' : 'Select a cell to add or update a payment.'}</p></div>
       <div className="map-heading-actions">
-        <button type="button" className={'button ' + (reordering ? 'primary' : 'secondary')}
-          aria-pressed={reordering} disabled={savingOrder || (!reordering && rows.length < 2)}
-          onClick={() => { clearDrag(); setReordering(!reordering) }}>
-          <GripVertical size={16} /> Reorder rows
-        </button>
+        {toggle}
         <button className="button secondary" onClick={() => open({ type: 'commitment' })}><Plus size={17} /> Add commitment</button>
       </div>
     </div>
@@ -193,43 +244,9 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
       current={current} chooseMonth={chooseMonth} totalLabel="Originally due" totals={summaries.map(entry => entry.scheduledCommitment)}>
       {rows.map((item, index) => {
         const Icon = icons[item.category] ?? CreditCard
-        function afterMidpoint(event) {
-          const bounds = event.currentTarget.getBoundingClientRect()
-          return event.clientY > bounds.top + bounds.height / 2
-        }
-        return <tr key={item.id}
-          className={dropRow?.id === item.id ? (dropRow.after ? 'drop-after' : 'drop-before') : undefined}
-          onDragOver={event => {
-            if (!draggedRow || draggedRow === item.id || savingOrder) return
-            event.preventDefault()
-            event.dataTransfer.dropEffect = 'move'
-            setDropRow({ id: item.id, after: afterMidpoint(event) })
-          }}
-          onDragLeave={event => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setDropRow(null)
-          }}
-          onDrop={event => {
-            if (!draggedRow || draggedRow === item.id || savingOrder) return
-            event.preventDefault()
-            void moveRow(draggedRow, item.id, afterMidpoint(event))
-          }}>
+        return <tr key={item.id} {...rowProps(item)}>
           <th scope="row"><div className="commitment-row-label">
-            {reordering && <button type="button" className="icon-button row-grip" draggable={!savingOrder}
-              disabled={savingOrder} aria-label={'Reorder ' + item.name + ' with Up or Down'}
-              title="Drag to reorder or press Up or Down"
-              onDragStart={event => {
-                event.dataTransfer.effectAllowed = 'move'
-                event.dataTransfer.setData('text/plain', 'Commitment row')
-                setDraggedRow(item.id)
-              }}
-              onDragEnd={clearDrag}
-              onKeyDown={event => {
-                if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return
-                event.preventDefault()
-                const after = event.key === 'ArrowDown'
-                const target = rows[index + (after ? 1 : -1)]
-                if (target) void moveRow(item.id, target.id, after)
-              }}><GripVertical size={16} /></button>}
+            {handle(item, index)}
             <button className="row-label" onClick={() => open({ type: 'commitment', item })} aria-label={'Edit ' + item.name}>
             <span className="row-icon"><Icon size={16} /></span><span><strong>{item.name}</strong><small>{item.provisional ? 'Verify schedule' : item.category} · due {item.day}</small></span>
           </button></div></th>
@@ -280,23 +297,29 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
   </section>
 }
 
-function Spending({ data, months, month, current, summaries, chooseMonth, open }) {
+function Spending({ data, months, month, current, summaries, chooseMonth, open, save }) {
   const [dragged, setDragged] = useState(null)
   const categories = data.categories.filter(item => months.some(value => active(item, value)))
+  const { reordering, orderError, rowProps, handle, toggle } = useRowReorder(data, 'categories', categories, save)
   return <section id="spending" className="panel map-panel" aria-labelledby="spending-title">
     <div className="panel-heading">
       <div><div className="section-title"><Wallet size={19} /><h2 id="spending-title">Monthly spending</h2></div>
-        <p>Select an empty cell to record spending. Drag a recorded amount to copy it within the same row.</p></div>
-      <button className="button secondary" onClick={() => open({ type: 'category' })}><Plus size={17} /> Add category</button>
+        <p>{reordering ? 'Drag a row by its handle or use the arrow keys.' : 'Select an empty cell to record spending. Drag a recorded amount to copy it within the same row.'}</p></div>
+      <div className="map-heading-actions">
+        {toggle}
+        <button className="button secondary" onClick={() => open({ type: 'category' })}><Plus size={17} /> Add category</button>
+      </div>
     </div>
+    {orderError && <p className="form-error" role="alert">{orderError}</p>}
     <MonthGrid rowHeading="Category" label="Spending across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Total recorded"
       totals={summaries.map(entry => entry.hasSpending ? entry.spent : null)}>
-      {categories.map(item => <tr key={item.id}>
-        <th scope="row"><button className="row-label" onClick={() => open({ type: 'category', item })}
+      {categories.map((item, index) => <tr key={item.id} {...rowProps(item)}>
+        <th scope="row"><div className="commitment-row-label">{handle(item, index)}
+          <button className="row-label" onClick={() => open({ type: 'category', item })}
           aria-label={'Edit category ' + item.name}>
           <span className="row-icon"><Wallet size={16} /></span><strong>{item.name}</strong>
-        </button></th>
+        </button></div></th>
         {months.map(value => {
           const entry = categoryMonth(data, item, value)
           const recorded = entry?.spent != null
@@ -564,7 +587,7 @@ function App() {
           <CommitmentMap data={data} months={months} month={month} current={current} today={today}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
           <Spending data={data} months={months} month={month} current={current}
-            summaries={summaries} chooseMonth={setMonth} open={setEditor} />
+            summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
         </>}
       </div>
     </main>
