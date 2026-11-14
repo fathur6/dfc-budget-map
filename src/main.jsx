@@ -20,6 +20,11 @@ const nav = [
   ['overview', 'Overview', Grid2X2], ['commitments', 'Commitment map', Layers3],
   ['spending', 'Monthly spending', Wallet], ['simulator', 'Simulator', FlaskConical],
 ]
+function sectionFromHash() {
+  const id = window.location.hash.slice(1)
+  return nav.some(([section]) => section === id) ? id : 'overview'
+}
+
 const icons = { Housing: House, Transport: CarFront, Utilities: Zap, Financing: CreditCard }
 const rangeOffsets = [-1, 0, 1, 2, 3, 4]
 const amountFormatter = new Intl.NumberFormat('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -345,7 +350,7 @@ function Simulator({ data, month, today }) {
   }
   return <section id="simulator" className="panel map-panel simulator-panel" aria-labelledby="sim-title">
     <div className="panel-heading">
-      <div><div className="section-title"><FlaskConical size={19} /><h2 id="sim-title">Commitment simulator</h2></div>
+      <div><div className="section-title"><FlaskConical size={19} /><h1 id="sim-title">Commitment simulator</h1></div>
         <p>See whether a new payment fits across its full term.</p></div>
     </div>
     <form className="sim-form" onSubmit={submit} onInput={() => { setScenario(null); setError('') }}>
@@ -374,7 +379,7 @@ function App() {
   const [today, setToday] = useState(todayMYT)
   const current = today.slice(0, 7)
   const [month, setMonth] = useState(current)
-  const [section, setSection] = useState('overview')
+  const [section, setSection] = useState(sectionFromHash)
   const [editor, setEditor] = useState(null)
   const [user, setUser] = useState(supabase ? undefined : null)
   const [loaded, setLoaded] = useState(null)
@@ -431,11 +436,25 @@ function App() {
     else { setError(''); setEditor(null); setNotice('Signed out') }
   }
   function navigate(id) {
-    setSection(id)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (sectionFromHash() !== id) window.location.hash = id
+    else document.getElementById(id)?.scrollIntoView({ block: 'start' })
   }
 
   const data = snapshot?.budget
+  const hasBudget = Boolean(data)
+  const simulatorPage = section === 'simulator'
+
+  useEffect(() => {
+    const syncSection = () => setSection(sectionFromHash())
+    window.addEventListener('hashchange', syncSection)
+    return () => window.removeEventListener('hashchange', syncSection)
+  }, [])
+
+  useEffect(() => {
+    if (section === 'overview' || section === 'simulator') window.scrollTo(0, 0)
+    else document.getElementById(section)?.scrollIntoView({ block: 'start' })
+  }, [section, hasBudget])
+
   const months = rangeOffsets.map(offset => addMonths(month, offset))
   const summaries = data && months.map(value => monthSummary(data, value, today))
   const summary = summaries?.[1]
@@ -449,9 +468,9 @@ function App() {
         <span className="brand-icon"><Activity size={23} strokeWidth={2.4} /></span>
         <span>DFC <strong>Budget Map</strong></span>
       </a>
-      <nav aria-label="Dashboard sections">
+      <nav aria-label="Main menu">
         {nav.map(([id, label, Icon]) => <button key={id} className={section === id ? 'active' : ''}
-          aria-current={section === id ? 'location' : undefined} onClick={() => navigate(id)}><Icon size={18} />{label}</button>)}
+          aria-current={section === id ? (simulatorPage ? 'page' : 'location') : undefined} onClick={() => navigate(id)}><Icon size={18} />{label}</button>)}
       </nav>
       <div className="sidebar-bottom">
         <button className="help" onClick={() => setEditor({ type: 'help' })}><CircleHelp size={17} /> How it works</button>
@@ -461,7 +480,8 @@ function App() {
 
     <main className="main" id="overview">
       <header className="topbar">
-        <span className="breadcrumb"><Grid2X2 size={15} /> Dashboard</span>
+        <span className="breadcrumb">{simulatorPage ? <><FlaskConical size={15} /> Simulator</>
+          : <><Grid2X2 size={15} /> Dashboard</>}</span>
         <div className="workspace-actions">
           <span className={'mode ' + (user ? 'cloud' : '')}><Database size={13} /> {user ? 'Supabase' : snapshot?.demo ? 'Demo · browser' : 'Browser storage'}</span>
           {supabase && user !== undefined && (user
@@ -482,7 +502,8 @@ function App() {
         {(incompleteConfig || authError) && <div className="form-error" role="alert">{authError || 'Cloud setup is incomplete. Set both Supabase environment variables to enable sign-in.'}</div>}
         {error && <div className="panel loading" role="alert">{error} <button className="button secondary" onClick={refresh}>Retry</button></div>}
         {!data && !error && <div className="panel loading" role="status">Loading budget…</div>}
-        {data && <>
+        {data && simulatorPage && <Simulator key={month} data={data} month={month} today={today} />}
+        {data && !simulatorPage && <>
           <section className="page-heading" aria-labelledby="page-title">
             <div>
               <p className="eyebrow"><span className="live-dot" /> Monthly overview</p>
@@ -533,7 +554,6 @@ function App() {
             summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
           <Spending data={data} months={months} month={month} current={current}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} />
-          <Simulator key={month} data={data} month={month} today={today} />
         </>}
       </div>
     </main>
