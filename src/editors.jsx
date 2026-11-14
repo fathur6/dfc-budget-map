@@ -73,6 +73,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     .map((source, index) => ({ ...source, key: String(index) })))
   const newIncomeRow = useRef(null)
   const key = item && paymentKey(item.id, month)
+  const spendingBudget = type === 'spending' ? categoryMonth(data, item, month)?.planned : null
   const copying = type === 'copy-spending'
   const [targetMonth, setTargetMonth] = useState(editor.month ?? '')
   const sourceAmount = copying ? categoryMonth(data, item, editor.sourceMonth)?.spent : null
@@ -191,7 +192,10 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         }
         const destinationKey = paymentKey(item.id, destination)
         const planned = data.spending[destinationKey]?.planned
-        const spent = copying ? sourceAmount : readAmount(get('spent'), { optional: true })
+        const useBudget = event.nativeEvent.submitter?.value === 'save-budgeted'
+        const spent = copying ? sourceAmount
+          : useBudget ? spendingBudget
+          : readAmount(get('spent'), { optional: true })
         if (planned == null && spent == null) delete next.spending[destinationKey]
         else next.spending[destinationKey] = { ...(planned != null && { planned }), spent }
       }
@@ -322,6 +326,8 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         <div className="spacer" />
         <button type="button" className="button secondary" disabled={busy} onClick={close}>Cancel</button>
         <button type="submit" className="button primary" disabled={busy}>{busy ? 'Saving…' : copying ? 'Copy value' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
+        {spendingBudget != null && <button type="submit" value="save-budgeted" formNoValidate
+          className="button secondary" disabled={busy}>Record {money(spendingBudget)} budgeted</button>}
       </footer>
     </form>
   </Modal>
