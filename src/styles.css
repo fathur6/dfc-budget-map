@@ -46,6 +46,7 @@ h1, h2 { letter-spacing: -.045em; }
 .sidebar nav button:hover, .help:hover { background: var(--raised); color: white; }
 .sidebar nav button.active { color: var(--green); background: #172b25; border-color: #274939; }
 .sidebar-bottom { display: grid; gap: 14px; margin-top: auto; }
+.app-version { color: var(--muted); font: 10px var(--mono); padding-inline: 7px; white-space: nowrap; }
 .sidebar-meta { border-top: 1px solid var(--line); color: var(--dim); font: 10px var(--mono); padding: 16px 7px 2px; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .live-dot { width: 7px; height: 7px; border-radius: 100%; display: inline-block; flex: none; background: var(--green); box-shadow: 0 0 10px #42e7ad69; }
 .main { min-width: 0; }
@@ -226,6 +227,7 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
   .sidebar nav { display: flex; margin-top: 0; gap: 4px; }
   .sidebar nav button, .help { padding: 7px; gap: 5px; }
   .sidebar-meta { display: none; }
+  .app-version { padding-inline: 0; }
   .sidebar-bottom { margin-top: 0; }
   .topbar { min-height: 52px; }
 }

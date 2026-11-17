@@ -517,6 +517,7 @@ function App() {
       <div className="sidebar-bottom">
         <button className="help" onClick={() => setEditor({ type: 'help' })}><CircleHelp size={17} /> How it works</button>
         <span className="sidebar-meta"><span className="live-dot" /> MYR <span>·</span> Malaysia time</span>
+        <span className="app-version">{__APP_VERSION_LABEL__}</span>
       </div>
     </aside>
 

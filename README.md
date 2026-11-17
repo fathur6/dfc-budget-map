@@ -16,6 +16,10 @@ You can set this up in your browser using your own GitHub, Vercel and Supabase a
 
 The Vercel button deploys the frontend. Database initialization and the first private account are one-time dashboard steps. Each installation uses its own Supabase project. Supabase service-role keys and database passwords belong in server-side systems only. The [keep-alive](#optional-supabase-keep-alive) is optional.
 
+## Release version
+
+The sidebar displays the version and build number from `package.json`. Update `version` when publishing a new release and increment `buildNumber` for each published build. If the package version changes, update the package lock as well.
+
 ## Run locally
 
 ```sh
