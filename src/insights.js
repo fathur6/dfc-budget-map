@@ -22,8 +22,7 @@ export function validInsightPlan(plan, types) {
 
 export function monthlyInsightFacts(months, summaries, month, current) {
   const selected = summaries[months.indexOf(month)]
-  const { income, committed, spent, loanProceeds, balance } = selected
-  const beforeLoans = income == null ? null : income - committed - spent
+  const { beforeLoans, loanProceeds, balance } = selected
   let fundingType = 'income_missing'
   if (beforeLoans != null) {
     if (beforeLoans < 0 && loanProceeds > 0) {

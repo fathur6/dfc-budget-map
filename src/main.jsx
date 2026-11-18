@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, CarFront, ChevronLeft,
+  Activity, ArrowDownLeft, ArrowRight, CalendarDays, CarFront, ChevronLeft,
   ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, GripVertical, Grid2X2, House, KeyRound, Layers3, LogIn,
   LogOut, Pencil, Plus, ShieldCheck, Wallet, Zap,
 } from 'lucide-react'
@@ -9,7 +9,7 @@ import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import {
   active, addMonths, categoryMonth, emptyBudget, installment, money, monthLabel, monthSummary,
-  parseMoney, paymentKey, projectCommitment, simulate, todayMYT,
+  paymentKey, projectClosingCash, todayMYT, validMonth,
 } from './budget.js'
 import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
@@ -18,6 +18,8 @@ import { CashFlowChart } from './CashFlowChart.jsx'
 import { CommitmentChart } from './CommitmentChart.jsx'
 import { SpendingChart } from './SpendingChart.jsx'
 import { OverviewInsights } from './OverviewInsights.jsx'
+import { CashProjectionNote, OpeningCashEditor, SpendingReview } from './Forecast.jsx'
+import { Simulator } from './Simulator.jsx'
 import './styles.css'
 
 const nav = [
@@ -49,7 +51,7 @@ function Metric({ icon: Icon, label, value, tone = '', note, onEdit, children })
   </article>
 }
 
-function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, totalLabel, totals, renderTotal = money, children }) {
+function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, totalLabel, totals, renderTotal = money, closingCash, children }) {
   const scrollRef = useRef(null)
   useEffect(() => {
     const container = scrollRef.current
@@ -71,8 +73,13 @@ function MonthGrid({ rowHeading, label, months, month, current, chooseMonth, tot
         </th>)}
       </tr></thead>
       <tbody>{children}</tbody>
-      <tfoot><tr><th scope="row">{totalLabel}</th>{totals.map((total, index) =>
-        <td key={months[index]} className={months[index] === month ? 'selected-col' : ''}>{renderTotal(total)}</td>)}</tr></tfoot>
+      <tfoot>
+        <tr><th scope="row">{totalLabel}</th>{totals.map((total, index) =>
+          <td key={months[index]} className={months[index] === month ? 'selected-col' : ''}>{renderTotal(total)}</td>)}</tr>
+        {closingCash && <tr className="closing-cash-row"><th scope="row">Projected closing cash</th>{closingCash.map((amount, index) =>
+          <td key={months[index]} className={(months[index] === month ? 'selected-col ' : '') + (amount < 0 ? 'cash-negative' : '')}>
+            {money(amount)}</td>)}</tr>}
+      </tfoot>
     </table>
   </div>
 }
@@ -86,7 +93,8 @@ function BalanceCell({ balance }) {
   </span>
 }
 
-function MonthlySummary({ months, month, current, summaries, chooseMonth, open }) {
+function MonthlySummary({ data, months, month, current, today, summaries, chooseMonth, open, save }) {
+  const projection = data.openingCash && projectClosingCash(data, months, summaries, today)
   const rows = [
     { label: 'Income', value: (entry, value) => <button type="button" className="summary-detail-button"
       aria-label={'Edit income for ' + monthLabel(value, 'long') + ', ' + money(entry.income)}
@@ -103,15 +111,22 @@ function MonthlySummary({ months, month, current, summaries, chooseMonth, open }
       </button>
       : money(entry.committed) },
     { label: 'Spending', value: entry => money(entry.hasSpending ? entry.spent : null) },
+    ...(summaries.some(entry => entry.loanProceeds > 0)
+      ? [{ label: 'Before loan proceeds', value: entry => money(entry.beforeLoans) }] : []),
   ]
   return <section className="panel map-panel monthly-summary" aria-labelledby="monthly-summary-title">
     <div className="panel-heading">
       <div><div className="section-title"><Grid2X2 size={20} /><h2 id="monthly-summary-title">Monthly summary</h2></div>
-        <p>Balance uses recorded spending. Empty spending cells count as zero.</p>
+        <p>Monthly results use entered spending. Empty spending cells count as zero.</p>
       </div>
+      <button type="button" className="button secondary" onClick={() => open({ type: 'opening-cash' })}>
+        {data.openingCash ? 'Edit opening cash' : 'Set opening cash'}
+      </button>
     </div>
+    <SpendingReview data={data} month={month} confirmed={summaries[months.indexOf(month)].spendingConfirmed} save={save} />
+    <CashProjectionNote opening={data.openingCash} projection={projection} />
     <MonthGrid rowHeading="Cash flow" label="Cash flow across six months" months={months} month={month}
-      current={current} chooseMonth={chooseMonth} totalLabel="Balance"
+      current={current} chooseMonth={chooseMonth} totalLabel="Monthly result" closingCash={projection?.balances}
       totals={summaries.map(entry => entry.balance)} renderTotal={balance => <BalanceCell balance={balance} />}>
       {rows.map(({ label, value }) => <tr key={label}>
         <th scope="row">{label}</th>
@@ -128,11 +143,13 @@ function CommitmentBreakdown({ month, summary, close }) {
       <dl className="transfer-breakdown">
         <div><dt>Originally due</dt><dd>{money(summary.scheduledCommitment)}</dd></div>
         {summary.movedIn.map(entry => <div key={'in:' + paymentKey(entry.id, entry.dueMonth)}>
-          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid' : 'Planned'} · Due {monthLabel(entry.dueMonth)}</small></dt>
+          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid' : 'Planned'} · Due {monthLabel(entry.dueMonth)}
+            {entry.partial && ' · Carried from a partial payment'}</small></dt>
           <dd className="transfer-in">+{money(entry.amount)}</dd>
         </div>)}
         {summary.movedOut.map(entry => <div key={'out:' + paymentKey(entry.id, entry.dueMonth)}>
-          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid in ' : 'Planned for '}{monthLabel(entry.paymentMonth)}</small></dt>
+          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid in ' : 'Planned for '}{monthLabel(entry.paymentMonth)}
+            {entry.partial && ' · Carried from a partial payment'}</small></dt>
           <dd className="transfer-out">{money(-entry.amount)}</dd>
         </div>)}
         <div><dt>Total for this month</dt><dd>{money(summary.committed)}</dd></div>
@@ -316,6 +333,7 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
       </div>
     </div>
     {orderError && <p className="form-error" role="alert">{orderError}</p>}
+    <SpendingReview data={data} month={month} confirmed={summaries[months.indexOf(month)].spendingConfirmed} save={save} />
     <SpendingChart months={months} summaries={summaries} month={month} chooseMonth={chooseMonth} />
     <MonthGrid rowHeading="Item" label="Spending across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Total recorded"
@@ -370,56 +388,12 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
   </section>
 }
 
-function Simulator({ data, month, today }) {
-  const [scenario, setScenario] = useState(null)
-  const [error, setError] = useState('')
-  const projection = scenario && projectCommitment(data, scenario, today)
-  const result = scenario && simulate(data, scenario, today, projection)
-  function submit(event) {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const amount = parseMoney(form.get('amount'))
-    const buffer = parseMoney(form.get('buffer'))
-    const start = form.get('start')
-    const duration = Number(form.get('duration'))
-    if (amount == null || amount <= 0 || buffer == null || !/^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/.test(start)
-      || start < today.slice(0, 7) || !Number.isInteger(duration) || duration < 1 || duration > 120) {
-      setError('Enter a positive monthly amount, a valid start month, 1–120 months and a buffer of RM 0 or more.')
-      setScenario(null)
-      return
-    }
-    setError('')
-    setScenario({ start, duration, amount, buffer })
-  }
-  return <>
-  <section id="simulator" className="panel map-panel simulator-panel" aria-labelledby="sim-title">
-    <div className="panel-heading">
-      <div><div className="section-title"><FlaskConical size={19} /><h1 id="sim-title">Commitment simulator</h1></div>
-        <p>See whether a new payment fits across its full term.</p></div>
-    </div>
-    <form className="sim-form" onSubmit={submit} onInput={() => { setScenario(null); setError('') }}>
-      <div className="form-grid">
-        <label className="field"><span>New monthly payment</span><div className="money-input"><span>RM</span><input name="amount" inputMode="decimal" placeholder="0.00" required /></div></label>
-        <MonthField label="Start month" name="start" value={month > today.slice(0, 7) ? month : today.slice(0, 7)} min={today.slice(0, 7)} />
-        <label className="field"><span>Term (months)</span><input type="number" name="duration" min="1" max="120" defaultValue="12" required /></label>
-        <label className="field"><span>Minimum monthly buffer</span><div className="money-input"><span>RM</span><input name="buffer" inputMode="decimal" defaultValue="0.00" required /></div></label>
-      </div>
-      <button className="button primary" type="submit">Run scenario <ArrowRight size={16} /></button>
-      {error && <p className="form-error" role="alert">{error}</p>}
-    </form>
-    {result && <div className={'scenario ' + (result.status ?? 'tight')} role="status">
-      {result.missing ? <strong>Set income for {monthLabel(result.missing, 'long')} to run this scenario.</strong> : <>
-        <strong>{result.status === 'fits' ? 'Fits the entered budget and buffer' : result.status === 'deficit' ? 'Would cause a deficit' : 'Falls below the buffer'}</strong>
-        <p>Tightest month: {monthLabel(result.month, 'long')} · {money(result.remaining)} after the new payment.</p>
-        <p>{result.headroom < 0 ? money(-result.headroom) + ' below your buffer.' : money(result.headroom) + ' above your buffer.'}</p>
-      </>}
-      {data.commitments.some(item => item.provisional) && <p>Some commitment schedules are provisional. Verify their amounts and dates before relying on this result.</p>}
-      {result.arrears > 0 && <p>Includes {money(result.arrears)} in earlier missed payments in the first month.</p>}
-    </div>}
-  </section>
-  {projection && <CashFlowChart title="Scenario projection" projected
-    months={projection.months.map(entry => entry.month)} summaries={projection.months} month={scenario.start} />}
-  </>
+function OverviewDetails({ title, icon: Icon, children }) {
+  const [expanded, setExpanded] = useState(false)
+  return <details className="overview-details" onToggle={event => setExpanded(event.currentTarget.open)}>
+    <summary><Icon size={17} /><strong>{title}</strong><ChevronRight size={16} className="details-chevron" /></summary>
+    {expanded && children}
+  </details>
 }
 
 function App() {
@@ -506,8 +480,6 @@ function App() {
   const months = rangeOffsets.map(offset => addMonths(month, offset))
   const summaries = data && months.map(value => monthSummary(data, value, today))
   const summary = summaries?.[1]
-  const balance = summary?.balance ?? null
-  const paidPercent = summary?.count ? Math.round(summary.paidCount * 100 / summary.count) : 0
 
   return <div className="shell">
     <aside className="sidebar">
@@ -578,30 +550,26 @@ function App() {
                 : summary.otherIncome ? <>{money(summary.otherIncome)} in additional income</>
                 : data.incomeByMonth[month] == null ? 'Default monthly income' : 'Using this month’s override'} />
             <Metric icon={CreditCard} label="Commitments" value={summary.committed} tone="amber"
-              note={<><strong>{money(summary.outstanding)}</strong> unpaid this month</>} />
+              note={<><strong>{money(summary.outstanding)}</strong> unpaid among payments allocated here</>} />
             <Metric icon={Wallet} label="Recorded spending" value={summary.hasSpending ? summary.spent : null} tone="blue"
-              note={'Total recorded this month'} />
-            <Metric icon={balance < 0 ? ArrowDownLeft : ArrowUpRight}
-              label={balance < 0 ? 'Deficit' : balance > 0 ? 'Surplus' : 'Balance'} value={balance}
-              tone={balance < 0 ? 'red' : 'green'} note={balance == null ? 'Enter income to see the balance' : 'After commitments and recorded spending'} />
+              note={summary.spendingConfirmed ? 'Confirmed for this month' : 'Spending review pending'} />
           </div>
 
-          {summary.count > 0 && <div className="completion">
-            <span className="completion-icon"><ShieldCheck size={18} /></span>
-            <div className="completion-label"><strong>Payments cleared</strong><span>{summary.paidCount} of {summary.count} paid</span></div>
-            <div className="progress" role="progressbar" aria-label="Payments cleared" aria-valuemin={0} aria-valuemax={100} aria-valuenow={paidPercent}>
-              <span style={{ width: paidPercent + '%' }} />
-            </div>
-            <strong className="percent">{paidPercent}%</strong>
-            {summary.missedCount > 0 && <span className="missed-count">{summary.missedCount} missed</span>}
-          </div>}
-
           <CashFlowChart months={months} summaries={summaries} month={month} />
-          <MonthlySummary months={months} month={month} current={current} summaries={summaries} chooseMonth={setMonth} open={setEditor} />
+          <MonthlySummary data={data} months={months} month={month} current={current} today={today}
+            summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
+          <OverviewDetails title="Commitment map" icon={Layers3}>
+            <CommitmentMap data={data} months={months} month={month} current={current} today={today}
+              summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
+          </OverviewDetails>
+          <OverviewDetails title="Monthly spending" icon={Wallet}>
+            <Spending data={data} months={months} month={month} current={current}
+              summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />
+          </OverviewDetails>
           </>}
-          {(overviewPage || section === 'commitments') && <CommitmentMap data={data} months={months} month={month} current={current} today={today}
+          {section === 'commitments' && <CommitmentMap data={data} months={months} month={month} current={current} today={today}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />}
-          {(overviewPage || section === 'spending') && <Spending data={data} months={months} month={month} current={current}
+          {section === 'spending' && <Spending data={data} months={months} month={month} current={current}
             summaries={summaries} chooseMonth={setMonth} open={setEditor} save={save} />}
         </>}
       </div>
@@ -616,6 +584,7 @@ function App() {
         <p>Each commitment cell stays in its original due month. Choose a different payment month when planning or recording an early or late payment. Open View transfers in Monthly Summary to see which payments were moved.</p>
         <p>Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
         <p>The Overview and Monthly Summary balances use income plus loan proceeds, minus commitments and recorded spending. The simulator also uses recorded spending. Empty spending cells count as zero.</p>
+        <p>Confirm spending once you have reviewed a month. An opening cash balance adds a projection of closing cash to Monthly Summary.</p>
         <p>The simulator excludes loan proceeds and follows the payment months you choose. It charges earlier missed payments that still need to be covered to the first month of the scenario.</p>
         <p>Browser budgets stay on this device. Signing in opens a separate Supabase budget.</p>
       </div>
@@ -624,7 +593,7 @@ function App() {
       <form className="editor" onSubmit={event => {
         event.preventDefault()
         const value = new FormData(event.currentTarget).get('month')
-        if (!/^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/.test(value)) return
+        if (!validMonth(value)) return
         setMonth(value)
         setEditor(null)
       }}>
@@ -634,7 +603,9 @@ function App() {
     </Modal>}
     {editor?.type === 'commitment-breakdown' && data && <CommitmentBreakdown month={editor.month}
       summary={monthSummary(data, editor.month, today)} close={() => setEditor(null)} />}
-    {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown'].includes(editor.type) && snapshot && <Editor
+    {editor?.type === 'opening-cash' && data && <OpeningCashEditor data={data} openingCash={data.openingCash}
+      month={month} close={() => setEditor(null)} save={save} />}
+    {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown', 'opening-cash'].includes(editor.type) && snapshot && <Editor
       key={identity + ':' + editor.type} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
       today={today} save={save} reload={refresh} open={setEditor} />}
     {notice && <div className="toast" role="status"><ShieldCheck size={18} /> {notice}</div>}

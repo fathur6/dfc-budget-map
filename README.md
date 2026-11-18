@@ -43,6 +43,8 @@ Open the production app in Safari, then use **Share → Add to Home Screen**. Le
 - The dashboard includes paid and unpaid commitments in their allocated months. An instalment with a verified due date becomes missed after its original due day unless marked paid.
 - The balance is income plus loan proceeds, minus commitments and recorded spending. Empty spending cells count as zero, including in the simulator.
 - The simulator adds the proposed payment to every month of its term and excludes loan proceeds. It includes each instalment in its allocated month and applies older missed payments still due to the first month of the scenario. It checks the lowest remaining balance against the entered buffer.
+- Confirm spending from Monthly Summary or Monthly Spending after reviewing a month. The confirmation applies to the saved amounts and active items for that month. The simulator labels scenarios with unconfirmed spending as incomplete and still shows the arithmetic on the entered amounts.
+- Use **Set opening cash** in Monthly Summary to project closing cash from a balance at the start of a specified month. Each monthly result carries into the next month. An unknown income month stops the running projection until that income is entered or the opening balance is moved.
 
 ## Vercel and Supabase
 

@@ -22,7 +22,12 @@ export function CashFlowChart({ months, summaries, month, title = 'Six-month cas
 
   const [inspectedMonth, inspect] = useState(null)
   const [hidden, setHidden] = useState([])
-  const series = projected ? [...baseSeries.slice(0, -1), { key: 'proposed', label: 'New payment', color: '#bd9bfa' }, baseSeries.at(-1)] : baseSeries
+  const includesLoans = !projected && summaries.some(entry => entry.loanProceeds > 0)
+  const inflowSeries = { ...baseSeries[0], label: includesLoans ? 'Cash inflow' : 'Income' }
+  const series = [inflowSeries, ...baseSeries.slice(1, -1),
+    ...(projected ? [{ key: 'proposed', label: 'New payment', color: '#bd9bfa' }] : []),
+    { ...baseSeries.at(-1), label: projected ? 'After new instalment' : 'Monthly result' },
+  ]
   const visible = series.filter(({ key }) => !hidden.includes(key))
   const values = summaries.flatMap(({ cashInflow, committed, spent, proposed = 0 }) => {
     const start = cashInflow ?? 0
@@ -48,7 +53,7 @@ export function CashFlowChart({ months, summaries, month, title = 'Six-month cas
       <div><div className="section-title"><Activity size={19} /><h2 id="cash-flow-title">{title}</h2></div>
         <p>{projected
           ? 'Income excludes loan proceeds. Select a month for exact amounts.'
-          : 'Income includes additional inflows. Commitments and spending step down to the balance. Select a month to see exact amounts.'}{projected && months.length > 6 && ' Scroll for later months.'}</p></div>
+          : (includesLoans ? 'Cash inflow includes loan proceeds and other income. ' : '') + 'Commitments and spending step down to the monthly result. Select a month to see exact amounts.'}{projected && months.length > 6 && ' Scroll for later months.'}</p></div>
     </div>
     <div className="cash-chart">
       <div className="cash-legend" role="group" aria-label="Chart series">
@@ -88,7 +93,7 @@ export function CashFlowChart({ months, summaries, month, title = 'Six-month cas
                 onClick={() => inspect(value)}>
                 <span className="cash-bars" aria-hidden="true">
                   {cashInflow != null && isVisible('cashInflow') && <>
-                    <span className="cash-bar cash-income chart-rounded-top" title={'Income ' + money(cashInflow)} style={band(0, cashInflow)} />
+                    <span className="cash-bar cash-income chart-rounded-top" title={inflowSeries.label + ' ' + money(cashInflow)} style={band(0, cashInflow)} />
                     <span className="cash-connector" style={{ top: percent(cashInflow) + '%' }} />
                   </>}
                   {segments.map(({ key, label, from, to }, segmentIndex) => <span key={key}
@@ -108,7 +113,7 @@ export function CashFlowChart({ months, summaries, month, title = 'Six-month cas
       </div>
       <div className="cash-details" aria-live="polite">
         <strong>{monthLabel(selected, 'long')}</strong>
-        <dl>{series.map(({ key, label }) => <div key={key}><dt>{label}</dt>
+        <dl>{(projected ? [...series.slice(0, -1), { key: 'baseline', label: 'Before new instalment' }, series.at(-1)] : series).map(({ key, label }) => <div key={key}><dt>{label}</dt>
           <dd className={details[key] < 0 ? 'cash-negative' : undefined}>{money(details[key])}{key === 'balance' && details.balance != null &&
             <small> {details.balance < 0 ? 'Deficit' : details.balance > 0 ? 'Surplus' : 'Break-even'}</small>}</dd></div>)}</dl>
       </div>

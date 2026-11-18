@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { addMonths, demoBudget, dueDate, emptyBudget, installment, monthSummary, outstandingBefore, parseMoney, projectCommitment, simulate, todayMYT } from '../src/budget.js'
+import {
+  addMonths, demoBudget, dueDate, emptyBudget, installment, monthSummary, nextMonthChange,
+  outstandingBefore, parseMoney, projectClosingCash, projectCommitment, simulate, spendingReviewKey, todayMYT,
+} from '../src/budget.js'
 import { readBackup } from '../src/backup.js'
 
 const today = '2026-11-13'
@@ -131,7 +134,11 @@ test('tests the whole term, the user buffer and earlier missed payments once', (
   changed.incomeByMonth['2027-01'] = 640000
   assert.equal(outstandingBefore(changed, '2026-11', today), 22000)
   const run = options => simulate(changed, { start: '2026-11', duration: 3, amount: 40000, buffer: 20000, ...options }, today)
-  assert.deepEqual(run(), { month: '2026-11', remaining: 284000, arrears: 22000, status: 'fits', headroom: 264000 })
+  assert.deepEqual(run(), {
+    month: '2026-11', remaining: 284000, arrears: 22000, status: 'fits', headroom: 264000, unconfirmedCount: 3,
+    before: { month: '2026-11', remaining: 324000, firstBelow: null, belowCount: 0 },
+    after: { month: '2026-11', remaining: 284000, firstBelow: null, belowCount: 0 },
+  })
   assert.equal(run({ amount: 20000 }).status, 'fits')
   assert.equal(run({ amount: 400000 }).status, 'deficit')
   assert.equal(run({ duration: 1, amount: 200000 }).remaining, 124000)
@@ -245,6 +252,66 @@ test('projects the full term with the same monthly balances used by the simulato
   assert.equal(projection.months[0].committed, 335000)
   assert.equal(projection.months[1].committed, 313000)
   assert.equal(projection.months[0].proposed, 15000)
+  assert.ok(projection.months.every(entry => entry.baseline - entry.balance === scenario.amount))
   assert.equal(simulate(changed, scenario, today).remaining,
     Math.min(...projection.months.map(entry => entry.balance)))
+})
+
+test('spending confirmation follows an exact month and detects changes in active entries', () => {
+  const budget = structuredClone(data)
+  const month = '2026-11'
+  const isConfirmed = value => monthSummary(budget, value, today).spendingConfirmed
+  assert.equal(isConfirmed(month), false)
+  budget.spendingConfirmations = { [month]: spendingReviewKey(budget, month) }
+  budget.categories.reverse()
+  assert.equal(isConfirmed(month), true)
+  assert.equal(isConfirmed('2026-12'), false)
+  budget.spending['food:2026-11'] = { spent: 0 }
+  assert.equal(isConfirmed(month), false)
+  budget.spendingConfirmations[month] = spendingReviewKey(budget, month)
+  budget.categories.push({ id: 'new', start: month })
+  assert.equal(isConfirmed(month), false)
+})
+
+test('attributes monthly change and carries cash forward until an unknown-income month', () => {
+  const budget = emptyBudget()
+  budget.income = 1180000
+  budget.categories = [{ id: 'spending', name: 'Spending', start: '2026-11', end: '' }]
+  budget.commitments = [{ id: 'debt', name: 'Debt', category: 'Financing', amount: 913899, day: 1, start: '2026-12', end: '2027-01' }]
+  budget.payments['debt:2027-01'] = { amount: 709021 }
+  budget.spending['spending:2026-12'] = { spent: 459200 }
+  budget.spending['spending:2027-01'] = { spent: 414200 }
+  budget.openingCash = { month: '2026-12', amount: 100000 }
+  budget.spendingConfirmations = { '2026-12': spendingReviewKey(budget, '2026-12') }
+  budget.incomeByMonth['2027-02'] = null
+  const months = ['2026-11', '2026-12', '2027-01', '2027-02', '2027-03']
+  const summaries = months.map(month => monthSummary(budget, month, today))
+
+  assert.deepEqual(nextMonthChange(summaries[1], summaries[2]), {
+    total: 249878,
+    drivers: [
+      { label: 'Commitments', change: -204878 },
+      { label: 'Entered spending', change: -45000 },
+    ],
+  })
+  assert.equal(nextMonthChange(summaries[2], summaries[3]), null)
+  assert.deepEqual(projectClosingCash(budget, months, summaries, today), {
+    balances: [null, -93099, -36320, null, null], incomplete: '2027-01', missingIncome: '2027-02',
+  })
+  assert.equal(projectClosingCash(budget, months.slice(2), summaries.slice(2), today).balances[0], -36320)
+  const backup = { ...budget, openingCash: { ...budget.openingCash, amount: -20000 } }
+  assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: backup })), backup)
+})
+
+test('compares how many months cross the buffer and reports exact headroom', () => {
+  const budget = emptyBudget()
+  budget.income = 100000
+  budget.incomeByMonth['2026-12'] = 80000
+  const scenario = { start: '2026-11', duration: 3, amount: 20000, buffer: 70000 }
+  const result = simulate(budget, scenario, today)
+  assert.equal(result.before.belowCount, 0)
+  assert.equal(result.after.belowCount, 1)
+  assert.equal(result.after.firstBelow, '2026-12')
+  assert.equal(result.headroom, -10000)
+  assert.equal(simulate(budget, { ...scenario, buffer: 59500 }, today).headroom, 500)
 })

@@ -38,6 +38,8 @@ export function inputMoney(sen) {
   return sen == null ? '' : (sen / 100).toFixed(2)
 }
 
+export const validMonth = month => typeof month === 'string' && /^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/.test(month)
+
 export function emptyBudget() {
   return { income: null, incomeByMonth: {}, incomeSourcesByMonth: {}, commitments: [], categories: [], payments: {}, spending: {} }
 }
@@ -72,6 +74,13 @@ export function categoryMonth(data, category, month) {
   if (!active(category, month)) return null
   const entry = data.spending[paymentKey(category.id, month)]
   return { spent: entry?.spent ?? null }
+}
+
+export function spendingReviewKey(data, month) {
+  return JSON.stringify(data.categories
+    .filter(item => active(item, month))
+    .map(item => [item.id, categoryMonth(data, item, month).spent])
+    .sort(([a], [b]) => a.localeCompare(b)))
 }
 
 export function monthSummary(data, month, today) {
@@ -112,11 +121,49 @@ export function monthSummary(data, month, today) {
   const hasSpending = spendingByCategory.size > 0
   return {
     income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, scheduledTotal, missedTotal, spent, hasSpending, spendingByCategory, movedIn, movedOut,
+    spendingConfirmed: Object.hasOwn(data.spendingConfirmations ?? {}, month)
+      && data.spendingConfirmations[month] === spendingReviewKey(data, month),
+    beforeLoans: income == null ? null : income - committed - spent,
     scheduledCommitment: original.reduce((total, entry) => total + entry.amount, 0),
     count: commitments.length, paidCount: paid.length, missedCount: missed.length,
     outstanding: committed - paidTotal,
     balance: cashInflow == null ? null : cashInflow - committed - spent,
   }
+}
+
+export function nextMonthChange(from, to) {
+  if (from.balance == null || to.balance == null) return null
+  return {
+    total: to.balance - from.balance,
+    drivers: [
+      { label: 'Income', change: to.income - from.income },
+      { label: 'Loan proceeds', change: to.loanProceeds - from.loanProceeds },
+      { label: 'Commitments', change: to.committed - from.committed },
+      { label: 'Entered spending', change: to.spent - from.spent },
+    ].filter(entry => entry.change !== 0).sort((a, b) => Math.abs(b.change) - Math.abs(a.change)),
+  }
+}
+
+export function projectClosingCash(data, months, summaries, today) {
+  const opening = data.openingCash
+  const balances = months.map(() => null)
+  let incomplete = null
+  let missingIncome = null
+  if (!opening || opening.month > months.at(-1)) return { balances, incomplete, missingIncome }
+
+  let cash = opening.amount
+  for (let month = opening.month; month <= months.at(-1); month = addMonths(month, 1)) {
+    const index = months.indexOf(month)
+    const summary = index === -1 ? monthSummary(data, month, today) : summaries[index]
+    if (!summary.spendingConfirmed) incomplete ??= month
+    if (summary.balance == null) {
+      missingIncome = month
+      break
+    }
+    cash += summary.balance
+    if (index >= 0) balances[index] = cash
+  }
+  return { balances, incomplete, missingIncome }
 }
 
 function carriedBalance(entry) {
@@ -170,11 +217,12 @@ export function projectCommitment(data, { start, duration, amount }, today) {
   const arrears = outstandingBefore(data, start, today)
   const months = Array.from({ length: duration }, (_, offset) => {
     const month = addMonths(start, offset)
-    const { income, committed, spent } = monthSummary(data, month, today)
+    const { income, committed, spent, spendingConfirmed } = monthSummary(data, month, today)
     const existing = committed + (offset === 0 ? arrears : 0)
+    const baseline = income == null ? null : income - existing - spent
     return {
-      month, cashInflow: income, committed: existing, spent, proposed: amount,
-      balance: income == null ? null : income - existing - spent - amount,
+      month, cashInflow: income, committed: existing, spent, proposed: amount, spendingConfirmed,
+      baseline, balance: baseline == null ? null : baseline - amount,
     }
   })
   return { arrears, months }
@@ -183,15 +231,24 @@ export function projectCommitment(data, { start, duration, amount }, today) {
 export function simulate(data, scenario, today, projection = projectCommitment(data, scenario, today)) {
   const { buffer } = scenario
   const { arrears, months } = projection
-  let tightest = null
-  for (const { month, balance: remaining } of months) {
-    if (remaining == null) return { missing: month, arrears }
-    if (!tightest || remaining < tightest.remaining) tightest = { month, remaining }
+  const missing = months.find(entry => entry.balance == null)?.month
+  if (missing) return { missing, arrears }
+
+  const stats = key => {
+    const tightest = months.reduce((lowest, entry) => entry[key] < lowest[key] ? entry : lowest)
+    const below = months.filter(entry => entry[key] < buffer)
+    return {
+      month: tightest.month, remaining: tightest[key],
+      firstBelow: below[0]?.month ?? null, belowCount: below.length,
+    }
   }
+  const before = stats('baseline')
+  const after = stats('balance')
   return {
-    ...tightest, arrears,
-    status: tightest.remaining < 0 ? 'deficit' : tightest.remaining < buffer ? 'tight' : 'fits',
-    headroom: tightest.remaining - buffer,
+    month: after.month, remaining: after.remaining, arrears, before, after,
+    unconfirmedCount: months.filter(entry => !entry.spendingConfirmed).length,
+    status: after.remaining < 0 ? 'deficit' : after.remaining < buffer ? 'tight' : 'fits',
+    headroom: after.remaining - buffer,
   }
 }
 

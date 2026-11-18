@@ -1,6 +1,5 @@
-import { active, incomeSourceTypes, spendingCategories } from './budget.js'
+import { active, incomeSourceTypes, spendingCategories, validMonth } from './budget.js'
 
-const validMonth = month => typeof month === 'string' && /^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/.test(month)
 const validAmount = value => Number.isSafeInteger(value) && value >= 0 && value <= 999999999
 const record = value => value && typeof value === 'object' && !Array.isArray(value)
 const validId = id => typeof id === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(id)
@@ -62,6 +61,10 @@ export function readBackup(text) {
       && (item.amount === undefined || validAmount(item.amount)), true)
     || !validateEntries(budget.spending, budget.categories, item =>
       (item.spent == null || validAmount(item.spent)))
+    || (budget.spendingConfirmations !== undefined && (!record(budget.spendingConfirmations)
+      || !Object.entries(budget.spendingConfirmations).every(([month, value]) => validMonth(month) && typeof value === 'string')))
+    || (budget.openingCash !== undefined && (!record(budget.openingCash) || !validMonth(budget.openingCash.month)
+      || !Number.isSafeInteger(budget.openingCash.amount) || !validAmount(Math.abs(budget.openingCash.amount))))
     || (budget.notes !== undefined && (!Array.isArray(budget.notes)
       || !budget.notes.every(note => typeof note === 'string' && note.length <= 1500)))) throw invalidBackup()
   return budget

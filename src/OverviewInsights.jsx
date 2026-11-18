@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { money, monthLabel } from './budget.js'
+import { money, monthLabel, nextMonthChange } from './budget.js'
 import { Modal } from './editors.jsx'
 import { demoInsightFacts, monthlyInsightFacts, validInsightPlan } from './insights.js'
 
@@ -20,15 +20,41 @@ function factText(fact) {
     return `${money(fact.amount)} originally due in ${month} was allocated to ${destination}.`
   }
   if (fact.type === 'upcoming_shortfall') {
-    return `${month} shows a projected shortfall of ${money(fact.amount)} based on the entered figures.`
+    return <><strong>{month} forecast · {money(fact.amount)} shortfall.</strong> Based on the entered figures.</>
   }
+}
 
-  const amount = money(Math.abs(fact.beforeLoans))
-  const before = fact.beforeLoans < 0 ? `${amount} shortfall` : fact.beforeLoans > 0 ? `${amount} surplus` : 'Break-even'
-  const result = fact.balance < 0 ? `${money(-fact.balance)} shortfall` : fact.balance > 0
-    ? `${money(fact.balance)} surplus` : 'break-even'
-  return <><strong>{before} before loan proceeds in {month}.</strong>
-    {fact.loanProceeds > 0 && <> With {money(fact.loanProceeds)} in loan proceeds, the monthly result is {result}.</>}</>
+function FundingResult({ funding }) {
+  const { beforeLoans, loanProceeds, balance } = funding
+  const before = beforeLoans == null ? '—' : beforeLoans === 0 ? 'Break-even'
+    : `${money(Math.abs(beforeLoans))} ${beforeLoans < 0 ? 'shortfall' : 'surplus'}`
+  return <div className="funding-results">
+    <div className={'funding-primary' + (beforeLoans < 0 ? ' deficit' : '')}>
+      <span>Before loan proceeds</span>
+      <strong>{before}</strong>
+      {beforeLoans == null && <small>{factText(funding)}</small>}
+    </div>
+    {loanProceeds > 0 && <div className="funding-secondary">
+      <span>After loan proceeds</span>
+      <strong>{balance > 0 ? '+' : ''}{money(balance)}</strong>
+      <small>Includes {money(loanProceeds)} in loan proceeds.</small>
+    </div>}
+  </div>
+}
+
+function NextMonthChange({ month, current, next }) {
+  if (!next) return null
+  const change = nextMonthChange(current, next)
+  if (!change) return null
+  return <div className="next-month-change">
+    <h3>What changes in {monthLabel(month, 'long')}?</h3>
+    <p>{change.total > 0 ? 'The monthly result improves by ' + money(change.total)
+      : change.total < 0 ? 'The monthly result falls by ' + money(-change.total) : 'The monthly result stays the same'}.</p>
+    {change.drivers.length > 0 && <ul>{change.drivers.map(driver => <li key={driver.label}>
+      {driver.label} · {money(Math.abs(driver.change))} {driver.change < 0 ? 'lower' : 'higher'}
+    </li>)}</ul>}
+    {(!current.spendingConfirmed || !next.spendingConfirmed) && <p className="forecast-incomplete">Spending is unconfirmed for one or both months.</p>}
+  </div>
 }
 
 function reviewLabel(fact) {
@@ -47,9 +73,13 @@ export function OverviewInsights({ months, summaries, month, current, supabase, 
   const monthFacts = monthlyInsightFacts(months, summaries, month, current)
   const facts = run?.demo ? demoInsightFacts : monthFacts
   const plan = run?.plan
-  const lead = facts.find(fact => fact.type === plan?.lead) ?? facts[0]
+  const [funding, ...details] = facts
+  const focused = details.find(fact => fact.type === plan?.lead)
+  const ordered = focused ? [focused, ...details.filter(fact => fact !== focused)] : details
   const review = facts.find(fact => fact.type === plan?.review)
   const transfers = facts.find(fact => fact.type === 'moved_to_later_month')
+  const selectedIndex = months.indexOf(month)
+  const selected = summaries[selectedIndex]
 
   function reviewFact(fact) {
     if (fact.type === 'moved_to_later_month') open({ type: 'commitment-breakdown', month: fact.month })
@@ -105,14 +135,18 @@ export function OverviewInsights({ months, summaries, month, current, supabase, 
     </div>
     <div className="overview-insights-content" aria-live="polite">
       {run?.message && <p className="overview-insights-message">{run.message}</p>}
-      <p className={'insight-lead' + (lead.beforeLoans < 0 ? ' deficit' : '')}>{factText(lead)}</p>
-      {facts.length > 1 && <ul>
-        {facts.filter(fact => fact !== lead).map(fact => <li key={fact.type}>{factText(fact)}</li>)}
+      <FundingResult funding={funding} />
+      {!run?.demo && selected.count > 0 && <p className="allocation-count"><strong>{selected.paidCount} of {selected.count}</strong> payments allocated to {monthLabel(month)} marked paid.</p>}
+      {ordered.length > 0 && <ul className="insight-facts">
+        {ordered.map(fact => <li key={fact.type}>
+          {factText(fact)}
+          {!run?.demo && fact === transfers && review !== transfers && <> <button type="button" className="link-button" onClick={() => reviewFact(fact)}>View transfers</button></>}
+        </li>)}
       </ul>}
-      {!run?.demo && (review || transfers) && <div className="overview-insights-actions">
-        {review && <button className="button secondary" type="button" onClick={() => reviewFact(review)}>{reviewLabel(review)}</button>}
-        {transfers && review !== transfers && <button className="button secondary" type="button" onClick={() => reviewFact(transfers)}>View transfers</button>}
+      {!run?.demo && review && <div className="overview-insights-actions">
+        <button className="button secondary" type="button" onClick={() => reviewFact(review)}>{reviewLabel(review)}</button>
       </div>}
+      {!run?.demo && <NextMonthChange month={months[selectedIndex + 1]} current={selected} next={summaries[selectedIndex + 1]} />}
     </div>
     {confirm && <Modal title="Explain this month with DeepSeek" close={() => setConfirm(false)}>
       <div className="editor overview-insights-dialog">
