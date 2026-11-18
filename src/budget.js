@@ -100,10 +100,12 @@ export function monthSummary(data, month, today) {
   const missed = commitments.filter(entry => entry.paymentMonth && entry.paymentMonth !== entry.dueMonth
     ? entry.status !== 'paid' && entry.paymentMonth < today.slice(0, 7)
     : entry.status === 'missed')
+  const missedTotal = missed.reduce((total, entry) => total + entry.amount, 0)
+  const scheduledTotal = committed - paidTotal - missedTotal
   const spent = categories.reduce((total, entry) => total + (entry.spent ?? 0), 0)
   const hasSpending = categories.some(entry => entry.spent != null)
   return {
-    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, spent, hasSpending, movedIn, movedOut,
+    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, scheduledTotal, missedTotal, spent, hasSpending, movedIn, movedOut,
     scheduledCommitment: original.reduce((total, entry) => total + entry.amount, 0),
     count: commitments.length, paidCount: paid.length, missedCount: missed.length,
     outstanding: committed - paidTotal,

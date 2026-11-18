@@ -15,6 +15,7 @@ import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './edit
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
 import { downloadBackup } from './backup.js'
 import { CashFlowChart } from './CashFlowChart.jsx'
+import { CommitmentChart } from './CommitmentChart.jsx'
 import './styles.css'
 
 const nav = [
@@ -241,6 +242,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
       </div>
     </div>
     {orderError && <p className="form-error" role="alert">{orderError}</p>}
+    <CommitmentChart months={months} summaries={summaries} month={month} chooseMonth={chooseMonth} />
     <MonthGrid rowHeading="Commitment" label="Commitments across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Originally due" totals={summaries.map(entry => entry.scheduledCommitment)}>
       {rows.map((item, index) => {
