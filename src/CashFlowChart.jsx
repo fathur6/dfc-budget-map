@@ -77,20 +77,23 @@ export function CashFlowChart({ months, summaries, month, title = 'Six-month cas
               const { cashInflow, committed, spent, proposed = 0, balance } = summaries[index]
               const start = cashInflow ?? 0
               const afterCommitments = start - committed
+              const afterSpending = afterCommitments - spent
+              const segments = [
+                { key: 'committed', label: 'Commitments', from: start, to: afterCommitments },
+                { key: 'spent', label: 'Spending', from: afterCommitments, to: afterSpending },
+                { key: 'proposed', label: 'New payment', from: afterSpending, to: afterSpending - proposed },
+              ].filter(({ key, from, to }) => from !== to && isVisible(key))
               return <button type="button" className="cash-month" key={value}
                 aria-label={'Inspect ' + monthLabel(value, 'long')} aria-pressed={selected === value}
                 onClick={() => inspect(value)}>
                 <span className="cash-bars" aria-hidden="true">
                   {cashInflow != null && isVisible('cashInflow') && <>
-                    <span className="cash-bar cash-income" title={'Income ' + money(cashInflow)} style={band(0, cashInflow)} />
+                    <span className="cash-bar cash-income chart-rounded-top" title={'Income ' + money(cashInflow)} style={band(0, cashInflow)} />
                     <span className="cash-connector" style={{ top: percent(cashInflow) + '%' }} />
                   </>}
-                  {isVisible('committed') && <span className="cash-bar cash-outflow" title={'Commitments ' + money(committed)}
-                    style={{ ...band(start, afterCommitments), background: series[1].color }} />}
-                  {isVisible('spent') && <span className="cash-bar cash-outflow" title={'Spending ' + money(spent)}
-                    style={{ ...band(afterCommitments, afterCommitments - spent), background: series[2].color }} />}
-                  {projected && isVisible('proposed') && <span className="cash-bar cash-outflow" title={'New payment ' + money(proposed)}
-                    style={{ ...band(afterCommitments - spent, afterCommitments - spent - proposed), background: series[3].color }} />}
+                  {segments.map(({ key, label, from, to }, segmentIndex) => <span key={key}
+                    className={'cash-bar cash-outflow ' + key + (segmentIndex === 0 ? ' chart-rounded-top' : '')}
+                    title={label + ' ' + money(from - to)} style={band(from, to)} />)}
                   {balance != null && balance !== 0 && isVisible('balance') &&
                     <span className={'cash-balance ' + (balance < 0 ? 'deficit' : 'surplus')}
                       style={band(0, balance)}>

@@ -38,9 +38,10 @@ export function CommitmentChart({ months, summaries, month, chooseMonth }) {
                 disabled={value < '2000-01' || value > '2100-12'} aria-pressed={value === month}
                 aria-label={monthLabel(value, 'long') + ', total ' + money(entry.committed) + ', ' + detail}
                 title={detail} onClick={() => chooseMonth(value)}>
-                <span className="commitment-stack" aria-hidden="true">
-                  {buckets.map(([key, status]) => <span key={key} className={'commitment-color ' + status}
-                    style={{ height: entry[key] / scale * 100 + '%' }}
+                <span className="commitment-stack chart-rounded-top" aria-hidden="true"
+                  style={{ height: entry.committed / scale * 100 + '%' }}>
+                  {buckets.filter(([key]) => entry[key] > 0).map(([key, status]) => <span key={key} className={'commitment-color ' + status}
+                    style={{ height: entry[key] / entry.committed * 100 + '%' }}
                     title={statuses[status].label + ' ' + money(entry[key])} />)}
                 </span>
                 <span className="commitment-point" style={{ top: (1 - entry.committed / scale) * 100 + '%' }} aria-hidden="true" />

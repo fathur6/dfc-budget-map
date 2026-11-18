@@ -309,8 +309,12 @@ body {
 .cash-month:hover, .cash-month[aria-pressed="true"] { background: #8bb3c814; }
 .cash-bars { position: absolute; inset: 0 14%; pointer-events: none; }
 .cash-bar { pointer-events: auto; position: absolute; width: 36%; }
-.cash-income { left: 8%; background: linear-gradient(180deg, #59dbbf, #227d70); border-radius: 5px 5px 0 0; }
+.chart-rounded-top { border-radius: 5px 5px 0 0; }
+.cash-income { left: 8%; background: linear-gradient(180deg, #59dbbf, #227d70); }
 .cash-outflow { right: 8%; }
+.cash-outflow.committed, .commitment-stack .commitment-color.scheduled { background: linear-gradient(180deg, #f9c674, #a46c2d); }
+.cash-outflow.spent { background: linear-gradient(180deg, #94c6ff, #3d6ea8); }
+.cash-outflow.proposed { background: linear-gradient(180deg, #c8aaff, #7755ad); }
 .cash-connector { position: absolute; left: 44%; right: 44%; border-top: 1px dashed #9baebb; }
 .cash-balance { position: absolute; inset-inline: 0; z-index: 1; border-block: 1px solid currentColor; }
 .cash-balance-hover { position: absolute; inset: 0 44%; pointer-events: auto; }
@@ -338,7 +342,9 @@ body {
 .commitment-columns { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .commitment-month { position: relative; border-radius: 5px; padding: 0; }
 .commitment-month:hover, .commitment-month[aria-pressed="true"] { background: #8bb3c814; }
-.commitment-stack { position: absolute; inset: 0 18%; display: flex; flex-direction: column-reverse; }
+.commitment-stack { position: absolute; inset: auto 18% 0; display: flex; flex-direction: column-reverse; overflow: hidden; }
+.commitment-stack .commitment-color.paid { background: linear-gradient(180deg, #59dbbf, #227d70); }
+.commitment-stack .commitment-color.missed { background: linear-gradient(180deg, #ff94a3, #a2445b); }
 .commitment-color.paid { background: var(--green); }
 .commitment-color.scheduled { background: var(--amber); }
 .commitment-color.missed { background: var(--red); }
