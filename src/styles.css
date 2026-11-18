@@ -113,6 +113,18 @@ h1 { font-size: clamp(32px, 4.3vw, 52px); font-weight: 690; line-height: 1.06; }
 .section-title svg { color: var(--green); flex: none; }
 h2 { font-size: 19px; font-weight: 670; }
 .panel-heading p { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+.overview-insights { margin-top: 0; margin-bottom: 13px; }
+.overview-insights .panel-heading { flex-wrap: wrap; }
+.overview-insights-content { padding: 0 18px 17px; font-size: 13px; line-height: 1.55; }
+.overview-insights-content .insight-lead { color: #edf2f6; font-size: 15px; font-weight: 620; }
+.overview-insights-content .insight-lead.deficit strong { color: var(--red); }
+.overview-insights-content ul { margin: 7px 0 0; padding-inline-start: 20px; color: var(--muted); }
+.overview-insights-content li + li { margin-top: 4px; }
+.overview-insights-message { margin-bottom: 9px; color: var(--amber); }
+.overview-insights-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.overview-insights-content .overview-insights-actions { margin-top: 11px; }
+.overview-insights-dialog > p { line-height: 1.5; }
+.overview-insights-dialog .modal-actions { flex-wrap: wrap; justify-content: flex-end; }
 .table-scroll { overflow-x: auto; scrollbar-color: #455562 #13191f; }
 .map-table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; min-width: 750px; }
 .map-table th, .map-table td { text-align: center; padding: 6px; }

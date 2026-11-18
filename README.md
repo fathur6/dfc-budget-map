@@ -53,6 +53,16 @@ Open the production app in Safari, then use **Share → Add to Home Screen**. Le
 
 The budget migration enables owner-scoped [row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security) and denies anonymous access to the budget table. Cloud saves check a workspace revision to avoid silently overwriting concurrent changes.
 
+## Optional DeepSeek insights
+
+Monthly insights show the result before loan proceeds, commitments moved to later months, and upcoming shortfalls based on the entered figures. Budget Map calculates and displays these facts with or without DeepSeek.
+
+1. Open the Vercel project's **Settings → Environment Variables**. Add `DEEPSEEK_API_KEY` as a secret for Production and redeploy. Keep the key server-side.
+2. Sign in to Budget Map and open **Overview → Explain this month → Try with demo data** to try the connection with a fictional example.
+3. Choose **Explain my month** to let DeepSeek prioritize your selected month's insights. Only predefined patterns are sent to DeepSeek. Exact amounts, dates, item names and notes stay in Budget Map.
+
+The feature uses DeepSeek's usage-billed Flash API. The budget and monthly summary work without an API key.
+
 ## Optional Supabase keep-alive
 
 The **Supabase keep-alive** workflow runs a real read-only Data API query at 04:17, 10:17, 16:17 and 22:17 MYT. GitHub schedules these runs at minute 17 of hours 02, 08, 14 and 20 UTC. It works while the browser is closed. It requests one row from `public.keep_alive_health` and succeeds only if the result is exactly `[{"ready":true}]`. Requests time out after eight seconds. Transient failures allow at most three attempts. A long `Retry-After` causes the run to fail visibly. The workflow does not call a resume API or change quotas.

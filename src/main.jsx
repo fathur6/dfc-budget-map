@@ -17,6 +17,7 @@ import { downloadBackup } from './backup.js'
 import { CashFlowChart } from './CashFlowChart.jsx'
 import { CommitmentChart } from './CommitmentChart.jsx'
 import { SpendingChart } from './SpendingChart.jsx'
+import { OverviewInsights } from './OverviewInsights.jsx'
 import './styles.css'
 
 const nav = [
@@ -567,6 +568,9 @@ function App() {
           </section>
 
           {overviewPage && <>
+          <OverviewInsights key={identity + ':' + month + ':' + today + ':' + snapshot.revision}
+            months={months} summaries={summaries} month={month} current={current} supabase={supabase} signedIn={Boolean(user)}
+            chooseMonth={setMonth} open={setEditor} navigate={navigate} />
           <div className="metrics">
             <Metric icon={ArrowDownLeft} label="Cash inflow" value={summary.cashInflow} onEdit={() => setEditor({ type: 'income' })}
               note={summary.income == null ? 'Set base income to calculate your balance'
