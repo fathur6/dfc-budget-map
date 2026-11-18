@@ -16,6 +16,7 @@ import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js
 import { downloadBackup } from './backup.js'
 import { CashFlowChart } from './CashFlowChart.jsx'
 import { CommitmentChart } from './CommitmentChart.jsx'
+import { SpendingChart } from './SpendingChart.jsx'
 import './styles.css'
 
 const nav = [
@@ -314,6 +315,7 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
       </div>
     </div>
     {orderError && <p className="form-error" role="alert">{orderError}</p>}
+    <SpendingChart months={months} summaries={summaries} month={month} chooseMonth={chooseMonth} />
     <MonthGrid rowHeading="Item" label="Spending across six months" months={months} month={month}
       current={current} chooseMonth={chooseMonth} totalLabel="Total recorded"
       totals={summaries.map(entry => entry.hasSpending ? entry.spent : null)}>

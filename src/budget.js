@@ -87,7 +87,13 @@ export function monthSummary(data, month, today) {
   ]
   const movedIn = movedInstallments(data, today).filter(entry => entry.paymentMonth === month)
   const commitments = [...allocated.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
-  const categories = data.categories.map(item => categoryMonth(data, item, month)).filter(Boolean)
+  const spendingByCategory = new Map()
+  for (const item of data.categories) {
+    const amount = categoryMonth(data, item, month)?.spent
+    if (amount == null) continue
+    const category = spendingCategories.includes(item.category) ? item.category : 'Uncategorized'
+    spendingByCategory.set(category, (spendingByCategory.get(category) ?? 0) + amount)
+  }
   const baseIncome = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
   const incomeSources = data.incomeSourcesByMonth?.[month] ?? []
   const otherIncome = incomeSources.reduce((total, source) => total + (source.type === 'Loan proceeds' ? 0 : source.amount), 0)
@@ -102,10 +108,10 @@ export function monthSummary(data, month, today) {
     : entry.status === 'missed')
   const missedTotal = missed.reduce((total, entry) => total + entry.amount, 0)
   const scheduledTotal = committed - paidTotal - missedTotal
-  const spent = categories.reduce((total, entry) => total + (entry.spent ?? 0), 0)
-  const hasSpending = categories.some(entry => entry.spent != null)
+  const spent = Array.from(spendingByCategory.values()).reduce((total, amount) => total + amount, 0)
+  const hasSpending = spendingByCategory.size > 0
   return {
-    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, scheduledTotal, missedTotal, spent, hasSpending, movedIn, movedOut,
+    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, scheduledTotal, missedTotal, spent, hasSpending, spendingByCategory, movedIn, movedOut,
     scheduledCommitment: original.reduce((total, entry) => total + entry.amount, 0),
     count: commitments.length, paidCount: paid.length, missedCount: missed.length,
     outstanding: committed - paidTotal,

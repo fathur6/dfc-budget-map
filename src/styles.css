@@ -312,7 +312,7 @@ body {
 .chart-rounded-top { border-radius: 5px 5px 0 0; }
 .cash-income { left: 8%; background: linear-gradient(180deg, #59dbbf, #227d70); }
 .cash-outflow { right: 8%; }
-.cash-outflow.committed, .commitment-stack .commitment-color.scheduled { background: linear-gradient(180deg, #f9c674, #a46c2d); }
+.cash-outflow.committed { background: linear-gradient(180deg, #f9c674, #a46c2d); }
 .cash-outflow.spent { background: linear-gradient(180deg, #94c6ff, #3d6ea8); }
 .cash-outflow.proposed { background: linear-gradient(180deg, #c8aaff, #7755ad); }
 .cash-connector { position: absolute; left: 44%; right: 44%; border-top: 1px dashed #9baebb; }
@@ -330,43 +330,36 @@ body {
 .cash-details dd { margin: 4px 0 0; font-family: var(--mono); }
 .cash-negative { color: var(--red); }
 
-.commitment-insights { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(240px, 1fr); gap: 12px; padding: 0 18px 18px; }
-.commitment-overall { display: grid; gap: 12px; align-content: start; }
-.commitment-insight { min-width: 0; padding: 14px; background: var(--canvas); border: 1px solid var(--line); border-radius: 9px; }
-.commitment-insight h3 { margin: 0; font-size: 15px; }
-.commitment-insight p { color: var(--muted); font-size: 12px; margin-top: 6px; }
-.commitment-chart-scroll { overflow-x: auto; }
-.commitment-plot { position: relative; min-width: 470px; height: 220px; margin: 24px 0 47px 80px; }
-.commitment-axis { position: absolute; inset-inline: 0; border-top: 1px solid var(--line); }
-.commitment-axis span { position: absolute; right: calc(100% + 8px); transform: translateY(-50%); white-space: nowrap; color: var(--muted); font: 10px var(--mono); }
-.commitment-columns { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.commitment-month { position: relative; border-radius: 5px; padding: 0; }
-.commitment-month:hover, .commitment-month[aria-pressed="true"] { background: #8bb3c814; }
-.commitment-stack { position: absolute; inset: auto 18% 0; display: flex; flex-direction: column-reverse; overflow: hidden; }
-.commitment-stack .commitment-color.paid { background: linear-gradient(180deg, #59dbbf, #227d70); }
-.commitment-stack .commitment-color.missed { background: linear-gradient(180deg, #ff94a3, #a2445b); }
-.commitment-color.paid { background: var(--green); }
-.commitment-color.scheduled { background: var(--amber); }
-.commitment-color.missed { background: var(--red); }
-.commitment-month-label { position: absolute; top: calc(100% + 9px); inset-inline: 0; text-align: center; white-space: nowrap; color: var(--muted); font: 10px var(--mono); }
-.commitment-month-label strong { display: block; margin-top: 5px; color: #edf2f6; }
-.commitment-month[aria-pressed="true"] .commitment-month-label { color: var(--green); }
-.commitment-point { position: absolute; z-index: 2; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid var(--blue); border-radius: 50%; background: var(--canvas); pointer-events: none; }
-.commitment-trend-line { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--blue); overflow: visible; pointer-events: none; }
-.commitment-chart-legend { flex-wrap: wrap; gap: 8px 13px; font-size: 11px; color: var(--muted); }
-.commitment-chart-legend .commitment-line-key { width: 15px; height: 2px; background: var(--blue); }
-.commitment-ring { display: grid; place-items: center; width: 148px; aspect-ratio: 1; border-radius: 50%; margin: 12px auto 0; }
-.commitment-ring > div { display: grid; place-content: center; gap: 4px; width: 77%; aspect-ratio: 1; border-radius: 50%; background: var(--canvas); text-align: center; }
-.commitment-ring span { color: var(--muted); font-size: 11px; }
-.commitment-ring strong { font: 650 12px var(--mono); }
-.commitment-highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 12px 0 0; }
-.commitment-highlights dt { display: flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11px; }
-.commitment-highlights i { width: 7px; height: 7px; border-radius: 2px; }
-.commitment-highlights dd { display: grid; gap: 4px; margin: 5px 0 0; font: 10px var(--mono); overflow-wrap: anywhere; }
-.commitment-highlights dd strong { font-size: 14px; }
-.commitment-highlights .paid strong { color: var(--green); }
-.commitment-highlights .scheduled strong { color: var(--amber); }
-.commitment-highlights .missed strong { color: var(--red); }
+.breakdown-insights { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(240px, 1fr); gap: 12px; padding: 0 18px 18px; }
+.breakdown-overall { display: grid; gap: 12px; align-content: start; }
+.breakdown-insight { min-width: 0; padding: 14px; background: var(--canvas); border: 1px solid var(--line); border-radius: 9px; }
+.breakdown-insight h3 { margin: 0; font-size: 15px; }
+.breakdown-insight p { color: var(--muted); font-size: 12px; margin-top: 6px; }
+.breakdown-chart-scroll { overflow-x: auto; }
+.breakdown-plot { position: relative; min-width: 470px; height: 220px; margin: 24px 0 47px 80px; }
+.breakdown-axis { position: absolute; inset-inline: 0; border-top: 1px solid var(--line); }
+.breakdown-axis span { position: absolute; right: calc(100% + 8px); transform: translateY(-50%); white-space: nowrap; color: var(--muted); font: 10px var(--mono); }
+.breakdown-columns { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.breakdown-month { position: relative; border-radius: 5px; padding: 0; }
+.breakdown-month:hover, .breakdown-month[aria-pressed="true"] { background: #8bb3c814; }
+.breakdown-stack { position: absolute; inset: auto 18% 0; display: flex; flex-direction: column-reverse; overflow: hidden; }
+.breakdown-month-label { position: absolute; top: calc(100% + 9px); inset-inline: 0; text-align: center; white-space: nowrap; color: var(--muted); font: 10px var(--mono); }
+.breakdown-month-label strong { display: block; margin-top: 5px; color: #edf2f6; }
+.breakdown-month[aria-pressed="true"] .breakdown-month-label { color: var(--green); }
+.breakdown-point { position: absolute; z-index: 2; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid var(--blue); border-radius: 50%; background: var(--canvas); pointer-events: none; }
+.breakdown-trend-line { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--blue); overflow: visible; pointer-events: none; }
+.breakdown-chart-legend { flex-wrap: wrap; gap: 8px 13px; font-size: 11px; color: var(--muted); }
+.breakdown-chart-legend .breakdown-line-key { width: 15px; height: 2px; background: var(--blue); }
+.breakdown-ring { position: relative; background: var(--ring-dark); display: grid; place-items: center; width: 148px; aspect-ratio: 1; border-radius: 50%; margin: 12px auto 0; }
+.breakdown-ring::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--ring-light); mask-image: linear-gradient(#000, transparent); }
+.breakdown-ring > div { position: relative; display: grid; place-content: center; gap: 4px; width: 77%; aspect-ratio: 1; border-radius: 50%; background: var(--canvas); text-align: center; }
+.breakdown-ring span { color: var(--muted); font-size: 11px; }
+.breakdown-ring strong { font: 650 12px var(--mono); }
+.breakdown-highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 80px), 1fr)); gap: 6px; margin: 12px 0 0; }
+.breakdown-highlights dt { display: flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11px; }
+.breakdown-highlights i { flex: none; width: 7px; height: 7px; border-radius: 2px; }
+.breakdown-highlights dd { display: grid; gap: 4px; margin: 5px 0 0; font: 10px var(--mono); overflow-wrap: anywhere; }
+.breakdown-highlights dd strong { font-size: 14px; }
 @media (max-width: 1000px) {
-  .commitment-insights { grid-template-columns: minmax(0, 1fr); }
+  .breakdown-insights { grid-template-columns: minmax(0, 1fr); }
 }

@@ -24,6 +24,35 @@ test('counts all commitments in the forecast and isolates unpaid balances', () =
   assert.equal(monthSummary(data, '2027-01', today).committed, 281500)
 })
 
+test('groups recorded spending by category using the same amounts as the monthly total', () => {
+  const budget = emptyBudget()
+  budget.categories = [
+    { id: 'nursery', category: 'Childcare', start: '2026-11', end: '2026-12' },
+    { id: 'school', category: 'Childcare', start: '2026-11' },
+    { id: 'legacy', start: '2026-12' },
+    { id: 'petrol', category: 'Transport', start: '2026-11' },
+  ]
+  budget.spending = {
+    'nursery:2026-12': { spent: 45000 },
+    'school:2026-12': { spent: 25000 },
+    'legacy:2026-12': { spent: 4305 },
+    'petrol:2026-12': { spent: 0 },
+    'nursery:2027-01': { spent: 45000 },
+    'school:2027-01': { spent: 25000 },
+  }
+
+  const december = monthSummary(budget, '2026-12', today)
+  assert.deepEqual(december.spendingByCategory, new Map([
+    ['Childcare', 70000], ['Uncategorized', 4305], ['Transport', 0],
+  ]))
+  assert.equal(december.spent, 74305)
+
+  const january = monthSummary(budget, '2027-01', today)
+  assert.deepEqual(january.spendingByCategory, new Map([['Childcare', 25000]]))
+  assert.equal(january.spent, 25000)
+  assert.equal(monthSummary(budget, '2027-02', today).hasSpending, false)
+})
+
 test('supports payment overrides, due-day grace, one-off bills and provisional schedules', () => {
   const electric = data.commitments[2]
   assert.equal(installment(data, electric, '2026-11', '2026-11-20').status, 'scheduled')
