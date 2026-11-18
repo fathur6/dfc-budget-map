@@ -567,10 +567,6 @@ function App() {
           </section>
 
           {overviewPage && <>
-          {data.notes?.length > 0 && <details className="source-notes">
-            <summary>Screenshot import assumptions</summary>
-            <ul>{data.notes.map(note => <li key={note}>{note}</li>)}</ul>
-          </details>}
           <div className="metrics">
             <Metric icon={ArrowDownLeft} label="Cash inflow" value={summary.cashInflow} onEdit={() => setEditor({ type: 'income' })}
               note={summary.income == null ? 'Set base income to calculate your balance'
