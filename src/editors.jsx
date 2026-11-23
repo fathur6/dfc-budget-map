@@ -84,6 +84,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const oneOff = type === 'payment' && (!active(item, month) || payment?.oneOff === true)
   const [paymentDay, setPaymentDay] = useState(payment?.day ?? item?.day ?? 1)
   const [paymentStatus, setPaymentStatus] = useState(payment?.partial ? 'partial' : payment?.status ?? 'auto')
+  const [carrySettled, setCarrySettled] = useState(Boolean(payment?.partial?.settled))
   const day = Number(paymentDay)
   const validDay = Number.isInteger(day) && day >= 1 && day <= 31
   const due = type === 'payment' ? dueDate(month, validDay ? day : item.day) : null
@@ -172,11 +173,13 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
             const paid = readAmount(get('partialPaid'), { positive: true })
             const carryMonth = readMonth(get('carryMonth'))
             const settled = form.has('carrySettled')
+            const paidMonth = settled ? readMonth(get('carryPaidMonth'), true) : ''
             const current = today.slice(0, 7)
-            if (month > current || (settled && carryMonth > current)) throw new Error('Paid amounts must be recorded in the current month or earlier.')
+            if (month > current || (settled && (paidMonth || carryMonth) > current)) throw new Error('Paid amounts must be recorded in the current month or earlier.')
+            if (paidMonth && paidMonth < month) throw new Error('The remaining balance cannot be settled before the original payment month.')
             if (paid >= (amount ?? item.amount)) throw new Error('Partial payment must be less than the total amount due.')
             if (carryMonth <= month) throw new Error('Choose a later month for the remaining balance.')
-            partial = { paid, month: carryMonth, settled }
+            partial = { paid, month: carryMonth, settled, ...(paidMonth && paidMonth !== carryMonth && { paidMonth }) }
           }
           const day = get('day') && validDay ? Number(get('day')) : null
           const keepAmount = oneOff || status === 'paid' || partial || (amount != null && amount !== item.amount)
@@ -184,6 +187,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           else next.payments[key] = {
             ...(oneOff && { oneOff: true }),
             ...(!partial && status !== 'auto' && { status }),
+            ...(status === 'paid' && payment?.checklistMonth && { checklistMonth: payment.checklistMonth }),
             ...(partial && { partial }),
             ...(keepAmount && { amount: amount ?? item.amount }),
             ...(day != null && { day }),
@@ -199,7 +203,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         const destinationKey = paymentKey(item.id, destination)
         const spent = copying ? sourceAmount : readAmount(get('spent'), { optional: true })
         if (spent == null) delete next.spending[destinationKey]
-        else next.spending[destinationKey] = { spent }
+        else if (next.spending[destinationKey]?.spent !== spent) next.spending[destinationKey] = { spent }
       }
       await save(next)
     } catch (failure) {
@@ -294,7 +298,10 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           <MoneyField label="Amount paid in original month" name="partialPaid" value={payment?.partial?.paid} />
           <MonthField label="Carry balance to" name="carryMonth" min={addMonths(month, 1)}
             value={payment?.partial?.month ?? addMonths(month, 1)} />
-          <label className="check-field"><input type="checkbox" name="carrySettled" defaultChecked={payment?.partial?.settled} /> Remaining balance paid in selected month</label>
+          <label className="check-field"><input type="checkbox" name="carrySettled" checked={carrySettled}
+            onChange={event => setCarrySettled(event.target.checked)} /> Remaining balance paid</label>
+          {carrySettled && <MonthField label="Month paid (optional)" name="carryPaidMonth" min={month}
+            max={today.slice(0, 7)} value={payment?.partial?.paidMonth ?? ''} required={false} />}
         </>}
         <div className="form-grid">
           <MoneyField label={paymentStatus === 'partial' ? 'Total amount due' : oneOff ? 'Amount for this month' : 'Amount for this month (optional)'} name="amount" value={payment?.amount}

@@ -89,10 +89,10 @@ export function monthSummary(data, month, today) {
     return entry ? [{ ...entry, id: item.id, name: item.name, dueMonth: month }] : []
   })
   const allocated = original.map(entry => entry.partial
-    ? { ...entry, amount: entry.partial.paid, status: 'paid' } : entry)
+    ? { ...entry, amount: entry.partial.paidMonth === month ? entry.amount : entry.partial.paid, status: 'paid' } : entry)
   const movedOut = [
     ...original.filter(entry => entry.paymentMonth && entry.paymentMonth !== month),
-    ...original.filter(entry => entry.partial).map(carriedBalance),
+    ...original.filter(entry => entry.partial).map(carriedBalance).filter(entry => entry.paymentMonth !== month),
   ]
   const movedIn = movedInstallments(data, today).filter(entry => entry.paymentMonth === month)
   const commitments = [...allocated.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
@@ -170,7 +170,7 @@ function carriedBalance(entry) {
   return {
     ...entry,
     amount: entry.amount - entry.partial.paid,
-    paymentMonth: entry.partial.month,
+    paymentMonth: entry.partial.paidMonth ?? entry.partial.month,
     status: entry.partial.settled ? 'paid' : 'scheduled',
   }
 }
@@ -184,7 +184,8 @@ function movedInstallments(data, today) {
     const entry = item && installment(data, item, dueMonth, today)
     if (!entry) return []
     const original = { ...entry, id, name: item.name, dueMonth }
-    return [entry.partial ? carriedBalance(original) : original]
+    const moved = entry.partial ? carriedBalance(original) : original
+    return moved.paymentMonth === dueMonth ? [] : [moved]
   })
 }
 

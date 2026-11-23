@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import {
   Activity, ArrowDownLeft, ArrowRight, CalendarDays, CarFront, ChevronLeft,
   ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, GripVertical, Grid2X2, House, KeyRound, Layers3, LogIn,
-  LogOut, Pencil, Plus, ShieldCheck, Wallet, Zap,
+  ListChecks, LogOut, Pencil, Plus, ShieldCheck, Wallet, Zap,
 } from 'lucide-react'
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
@@ -20,15 +20,23 @@ import { SpendingChart } from './SpendingChart.jsx'
 import { OverviewInsights } from './OverviewInsights.jsx'
 import { CashProjectionNote, OpeningCashEditor, SpendingReview } from './Forecast.jsx'
 import { Simulator } from './Simulator.jsx'
+import { MonthlyTransfer } from './MonthlyTransfer.jsx'
 import './styles.css'
 
 const nav = [
   ['overview', 'Overview', Grid2X2], ['commitments', 'Commitment map', Layers3],
   ['spending', 'Monthly spending', Wallet], ['simulator', 'Simulator', FlaskConical],
 ]
+const transferPage = ['monthly-transfer', 'Monthly Transfer', ListChecks]
+
 function sectionFromHash() {
-  const id = window.location.hash.slice(1)
-  return nav.some(([section]) => section === id) ? id : 'overview'
+  const [id] = window.location.hash.slice(1).split('/')
+  return id === transferPage[0] || nav.some(([section]) => section === id) ? id : 'overview'
+}
+
+function checklistMonthFromHash() {
+  const [id, month] = window.location.hash.slice(1).split('/')
+  return id === transferPage[0] && validMonth(month) ? month : null
 }
 
 const icons = { Housing: House, Transport: CarFront, Utilities: Zap, Financing: CreditCard }
@@ -277,10 +285,11 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const carried = carriedByMonth.get(value).filter(payment => payment.id === item.id)
             const carriedTotal = carried.reduce((sum, payment) => sum + payment.amount, 0)
             const moved = entry?.paymentMonth && entry.paymentMonth !== value
-            const ownAmount = moved ? 0 : entry?.partial?.paid ?? entry?.amount ?? 0
+            const ownAmount = moved ? 0 : entry?.partial && entry.partial.paidMonth !== value
+              ? entry.partial.paid : entry?.amount ?? 0
             const shownAmount = carriedTotal ? ownAmount + carriedTotal : entry?.amount
             const status = entry?.partial
-              ? { ...(entry.partial.settled ? statuses.paid : statuses.scheduled), label: entry.partial.settled ? 'Settled across months' : 'Partially paid' }
+              ? { ...(entry.partial.settled ? statuses.paid : statuses.scheduled), label: entry.partial.settled ? 'Settled' : 'Partially paid' }
               : entry && statuses[entry.status]
             const tone = carriedTotal
               ? (carried.every(payment => payment.status === 'paid') && (!ownAmount || entry.partial || entry.status === 'paid') ? 'paid' : 'scheduled')
@@ -289,7 +298,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const carryNote = carriedTotal ? money(carriedTotal) + ' carried in' : ''
             const movement = entry?.partial
               ? money(entry.partial.paid) + ' paid · ' + money(entry.amount - entry.partial.paid)
-                + (entry.partial.settled ? ' paid in ' : ' carried to ') + monthLabel(entry.partial.month)
+                + (entry.partial.settled ? ' paid in ' : ' carried to ') + monthLabel(entry.partial.paidMonth ?? entry.partial.month)
               : moved ? (entry.status === 'paid' ? 'Paid in ' : 'Planned for ') + monthLabel(entry.paymentMonth) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
               {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
@@ -399,7 +408,7 @@ function OverviewDetails({ title, icon: Icon, children }) {
 function App() {
   const [today, setToday] = useState(todayMYT)
   const current = today.slice(0, 7)
-  const [month, setMonth] = useState(current)
+  const [month, setMonth] = useState(() => checklistMonthFromHash() ?? current)
   const [section, setSection] = useState(sectionFromHash)
   const [editor, setEditor] = useState(null)
   const [user, setUser] = useState(supabase ? undefined : null)
@@ -465,10 +474,20 @@ function App() {
   const hasBudget = Boolean(data)
   const simulatorPage = section === 'simulator'
   const overviewPage = section === 'overview'
-  const [, pageLabel, PageIcon] = nav.find(([id]) => id === section)
+  const transferPageActive = section === transferPage[0]
+  const [, pageLabel, PageIcon] = transferPageActive ? transferPage : nav.find(([id]) => id === section)
+
+  function chooseMonth(value) {
+    setMonth(value)
+    if (transferPageActive) window.location.hash = transferPage[0] + '/' + value
+  }
 
   useEffect(() => {
-    const syncSection = () => setSection(sectionFromHash())
+    const syncSection = () => {
+      setSection(sectionFromHash())
+      const checklistMonth = checklistMonthFromHash()
+      if (checklistMonth) setMonth(checklistMonth)
+    }
     window.addEventListener('hashchange', syncSection)
     return () => window.removeEventListener('hashchange', syncSection)
   }, [])
@@ -530,15 +549,20 @@ function App() {
               <p className="page-description">{overviewPage ? 'See what’s committed, what’s paid, and what’s left.' : monthLabel(month, 'long')}</p>
             </div>
             <div className="month-controls">
-              <button className="button secondary this-month" onClick={() => setMonth(current)} disabled={month === current}>This month</button>
+              <button className="button secondary this-month" onClick={() => chooseMonth(current)} disabled={month === current}>This month</button>
+              {transferPageActive
+                ? <button className="button secondary" onClick={() => navigate('overview')}>Back to Overview</button>
+                : <button className="button secondary" onClick={() => navigate(transferPage[0] + '/' + month)}><ListChecks size={16} /> Monthly Transfer</button>}
               <div className="month-switcher">
-                <button aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))} disabled={month <= '2000-01'}><ChevronLeft size={17} /></button>
+                <button aria-label="Previous month" onClick={() => chooseMonth(addMonths(month, -1))} disabled={month <= '2000-01'}><ChevronLeft size={17} /></button>
                 <button className="choose-month" aria-label="Choose month" onClick={() => setEditor({ type: 'month' })}><CalendarDays size={15} /> {monthLabel(month)}</button>
-                <button aria-label="Next month" onClick={() => setMonth(addMonths(month, 1))} disabled={month >= '2100-12'}><ChevronRight size={17} /></button>
+                <button aria-label="Next month" onClick={() => chooseMonth(addMonths(month, 1))} disabled={month >= '2100-12'}><ChevronRight size={17} /></button>
               </div>
             </div>
           </section>
 
+          {transferPageActive && <MonthlyTransfer key={identity + ':' + month} data={data}
+            month={month} today={today} summary={summary} save={save} open={setEditor} />}
           {overviewPage && <>
           <OverviewInsights key={identity + ':' + month + ':' + today + ':' + snapshot.revision}
             months={months} summaries={summaries} month={month} current={current} supabase={supabase} signedIn={Boolean(user)}
@@ -594,7 +618,7 @@ function App() {
         event.preventDefault()
         const value = new FormData(event.currentTarget).get('month')
         if (!validMonth(value)) return
-        setMonth(value)
+        chooseMonth(value)
         setEditor(null)
       }}>
         <MonthField label="Month to display" name="month" value={month} />

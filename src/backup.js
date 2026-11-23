@@ -51,16 +51,20 @@ export function readBackup(text) {
     || !validateEntries(budget.payments, budget.commitments, (item, month) =>
       (item.status === undefined || ['paid', 'missed'].includes(item.status))
       && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
+      && (item.checklistMonth === undefined || (validMonth(item.checklistMonth) && item.status === 'paid'))
       && (item.partial === undefined || (record(item.partial)
         && item.status === undefined && item.paymentMonth === undefined && validAmount(item.amount)
         && validAmount(item.partial.paid) && item.partial.paid > 0 && item.partial.paid < item.amount
         && validMonth(item.partial.month) && item.partial.month > month
-        && typeof item.partial.settled === 'boolean'))
+        && typeof item.partial.settled === 'boolean'
+        && (item.partial.paidMonth === undefined || (item.partial.settled
+          && validMonth(item.partial.paidMonth) && item.partial.paidMonth >= month))))
       && (item.oneOff === undefined || (item.oneOff === true && validAmount(item.amount)))
       && (item.day === undefined || (Number.isInteger(item.day) && item.day >= 1 && item.day <= 31))
       && (item.amount === undefined || validAmount(item.amount)), true)
     || !validateEntries(budget.spending, budget.categories, item =>
-      (item.spent == null || validAmount(item.spent)))
+      (item.spent == null || validAmount(item.spent))
+      && (item.transferred === undefined || (item.transferred === true && item.spent > 0)))
     || (budget.spendingConfirmations !== undefined && (!record(budget.spendingConfirmations)
       || !Object.entries(budget.spendingConfirmations).every(([month, value]) => validMonth(month) && typeof value === 'string')))
     || (budget.openingCash !== undefined && (!record(budget.openingCash) || !validMonth(budget.openingCash.month)
