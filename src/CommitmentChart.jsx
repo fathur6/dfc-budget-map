@@ -15,6 +15,6 @@ export function CommitmentChart({ months, summaries, month, chooseMonth }) {
   }))
 
   return <MonthlyBreakdownChart entries={entries} series={series} month={month} chooseMonth={chooseMonth}
-    title="Monthly commitment vs. payment" description="Amounts follow the payment month."
+    title="Monthly commitment vs. payment" description="Payments in the salary window count toward their budget month."
     overallTitle="Overall commitment" totalLabel="Total commitment" />
 }

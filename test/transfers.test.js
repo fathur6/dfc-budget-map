@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readBackup } from '../src/backup.js'
-import { emptyBudget, monthSummary } from '../src/budget.js'
+import { emptyBudget, installment, monthSummary, salaryChecklistMonth } from '../src/budget.js'
 import { commitmentChecklist, markCommitmentPaid, spendingChecklist } from '../src/transfers.js'
 
 const today = '2026-11-24'
@@ -37,9 +37,50 @@ test('retains early payments and planned carry-ins on the selected checklist', (
 
   assert.ok(commitmentChecklist(updated, december, today).every(row => row.status === 'paid' && row.paidMonth === november))
   assert.equal(commitmentChecklist(updated, november, today).length, 1)
-  assert.equal(monthSummary(updated, november, today).paidTotal, 322500)
-  assert.equal(monthSummary(updated, december, today).committed, 0)
+  assert.equal(monthSummary(updated, november, today).paidTotal, 143500)
+  assert.equal(monthSummary(updated, december, today).paidTotal, 179000)
+  assert.equal(monthSummary(updated, december, today).committed, 179000)
+  assert.equal(updated.payments['bill:2026-12'].paidDate, today)
   assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: updated })), updated)
+})
+
+test('applies the salary cutoff precisely and keeps earlier explicitly received salary with the next budget', () => {
+  const budget = budgetWithTransfers()
+  const bill = budget.commitments[0]
+  const paymentKey = 'bill:2026-12'
+  budget.payments[paymentKey] = { status: 'paid', paymentMonth: november, paidDate: '2026-11-20' }
+  assert.equal(installment(budget, bill, december, today).budgetMonth, undefined)
+  assert.equal(salaryChecklistMonth(budget, november, '2026-11-20'), november)
+  assert.equal(salaryChecklistMonth(budget, november, '2026-11-21'), december)
+  for (const day of [21, 22, 25]) {
+    budget.payments[paymentKey].paidDate = '2026-11-' + day
+    assert.equal(installment(budget, bill, december, today).budgetMonth, december)
+  }
+  budget.salaryReceipts = { [december]: '2026-11-19' }
+  assert.equal(salaryChecklistMonth(budget, november, '2026-11-19'), december)
+  assert.equal(salaryChecklistMonth(budget, '2027-01', today), '2027-01')
+  budget.payments[paymentKey].paidDate = '2026-11-18'
+  assert.equal(installment(budget, bill, december, today).budgetMonth, undefined)
+  budget.payments[paymentKey].paidDate = '2026-11-19'
+  assert.equal(installment(budget, bill, december, today).budgetMonth, december)
+  assert.equal(monthSummary(budget, december, today).paidTotal, 10000)
+  assert.equal(monthSummary(budget, november, today).paidTotal, 143500)
+  assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget })), budget)
+})
+
+test('retains explicit legacy checklist intent without guessing a date for other older payments', () => {
+  const budget = budgetWithTransfers()
+  const original = budget.payments['early:2026-12']
+  assert.equal(monthSummary(budget, december, today).paidTotal, 0)
+  original.checklistMonth = december
+  assert.equal(monthSummary(budget, december, today).paidTotal, 44500)
+  assert.equal(original.paidDate, undefined)
+
+  const partial = budget.payments['partial:2026-11'].partial
+  Object.assign(partial, { settled: true, paidMonth: november })
+  assert.equal(monthSummary(budget, december, today).paidTotal, 168500)
+  partial.paidDate = '2026-11-20'
+  assert.equal(monthSummary(budget, december, today).paidTotal, 44500)
 })
 
 test('keeps the outstanding amount separate when a carried balance lands in a different month', () => {

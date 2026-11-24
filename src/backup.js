@@ -1,4 +1,4 @@
-import { active, incomeSourceTypes, spendingCategories, validMonth } from './budget.js'
+import { active, addMonths, incomeSourceTypes, spendingCategories, validDate, validMonth } from './budget.js'
 
 const validAmount = value => Number.isSafeInteger(value) && value >= 0 && value <= 999999999
 const record = value => value && typeof value === 'object' && !Array.isArray(value)
@@ -38,6 +38,9 @@ export function readBackup(text) {
     || (budget.income !== null && !validAmount(budget.income))
     || !record(budget.incomeByMonth)
     || !Object.entries(budget.incomeByMonth).every(([month, value]) => validMonth(month) && (value === null || validAmount(value)))
+    || (budget.salaryReceipts !== undefined && (!record(budget.salaryReceipts)
+      || !Object.entries(budget.salaryReceipts).every(([month, date]) => validMonth(month) && validDate(date)
+        && [date.slice(0, 7), addMonths(date.slice(0, 7), 1)].includes(month))))
     || (budget.incomeSourcesByMonth !== undefined && (!record(budget.incomeSourcesByMonth)
       || !Object.entries(budget.incomeSourcesByMonth).every(([month, sources]) => validMonth(month)
         && Array.isArray(sources) && sources.every(source => record(source)
@@ -52,13 +55,17 @@ export function readBackup(text) {
       (item.status === undefined || ['paid', 'missed'].includes(item.status))
       && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
       && (item.checklistMonth === undefined || (validMonth(item.checklistMonth) && item.status === 'paid'))
+      && (item.paidDate === undefined || (item.status === 'paid' && validDate(item.paidDate)
+        && item.paidDate.slice(0, 7) === (item.paymentMonth ?? month)))
       && (item.partial === undefined || (record(item.partial)
         && item.status === undefined && item.paymentMonth === undefined && validAmount(item.amount)
         && validAmount(item.partial.paid) && item.partial.paid > 0 && item.partial.paid < item.amount
         && validMonth(item.partial.month) && item.partial.month > month
         && typeof item.partial.settled === 'boolean'
         && (item.partial.paidMonth === undefined || (item.partial.settled
-          && validMonth(item.partial.paidMonth) && item.partial.paidMonth >= month))))
+          && validMonth(item.partial.paidMonth) && item.partial.paidMonth >= month))
+        && (item.partial.paidDate === undefined || (item.partial.settled && validDate(item.partial.paidDate)
+          && item.partial.paidDate.slice(0, 7) === (item.partial.paidMonth ?? item.partial.month)))))
       && (item.oneOff === undefined || (item.oneOff === true && validAmount(item.amount)))
       && (item.day === undefined || (Number.isInteger(item.day) && item.day >= 1 && item.day <= 31))
       && (item.amount === undefined || validAmount(item.amount)), true)

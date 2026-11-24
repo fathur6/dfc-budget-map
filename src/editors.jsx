@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, Clock3, Plus, X } from 'lucide-react'
-import { active, addMonths, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, spendingCategories } from './budget.js'
+import { active, addMonths, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, spendingCategories, validDate } from './budget.js'
 import { readBackup } from './backup.js'
 
 export const statuses = {
@@ -52,6 +52,11 @@ function readAmount(value, { optional = false, positive = false } = {}) {
   const amount = parseMoney(value)
   if (amount == null || (positive && amount === 0)) throw new Error('Enter a valid ringgit amount with up to two decimal places.')
   return amount
+}
+
+function readPaidDate(value, today) {
+  if (value && (!validDate(value) || value > today)) throw new Error('Enter a payment date of today or earlier.')
+  return value
 }
 
 function readName(value) {
@@ -163,7 +168,9 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           delete next.payments[key]
         } else {
           const amount = readAmount(get('amount'), { optional: !oneOff })
-          const paymentMonth = ['missed', 'partial'].includes(status) ? '' : readMonth(get('paymentMonth'), true)
+          const paidDate = status === 'paid' ? readPaidDate(get('paidDate'), today) : ''
+          const paymentMonth = ['missed', 'partial'].includes(status) ? ''
+            : paidDate ? paidDate.slice(0, 7) : readMonth(get('paymentMonth'), true)
           if (status === 'paid' && (paymentMonth || month) > today.slice(0, 7)
             && !(payment?.status === 'paid' && !payment?.paymentMonth && !paymentMonth)) {
             throw new Error('Choose the month the payment was made, or select Planned for a future payment.')
@@ -173,25 +180,30 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
             const paid = readAmount(get('partialPaid'), { positive: true })
             const carryMonth = readMonth(get('carryMonth'))
             const settled = form.has('carrySettled')
-            const paidMonth = settled ? readMonth(get('carryPaidMonth'), true) : ''
+            const paidDate = settled ? readPaidDate(get('carryPaidDate'), today) : ''
+            const paidMonth = settled ? paidDate ? paidDate.slice(0, 7) : readMonth(get('carryPaidMonth'), true) : ''
             const current = today.slice(0, 7)
             if (month > current || (settled && (paidMonth || carryMonth) > current)) throw new Error('Paid amounts must be recorded in the current month or earlier.')
             if (paidMonth && paidMonth < month) throw new Error('The remaining balance cannot be settled before the original payment month.')
             if (paid >= (amount ?? item.amount)) throw new Error('Partial payment must be less than the total amount due.')
             if (carryMonth <= month) throw new Error('Choose a later month for the remaining balance.')
-            partial = { paid, month: carryMonth, settled, ...(paidMonth && paidMonth !== carryMonth && { paidMonth }) }
+            partial = { paid, month: carryMonth, settled, ...(paidMonth && paidMonth !== carryMonth && { paidMonth }), ...(paidDate && { paidDate }) }
           }
           const day = get('day') && validDay ? Number(get('day')) : null
           const keepAmount = oneOff || status === 'paid' || partial || (amount != null && amount !== item.amount)
           if (!keepAmount && day == null && status === 'auto' && !paymentMonth) delete next.payments[key]
-          else next.payments[key] = {
-            ...(oneOff && { oneOff: true }),
-            ...(!partial && status !== 'auto' && { status }),
-            ...(status === 'paid' && payment?.checklistMonth && { checklistMonth: payment.checklistMonth }),
-            ...(partial && { partial }),
-            ...(keepAmount && { amount: amount ?? item.amount }),
-            ...(day != null && { day }),
-            ...(paymentMonth && { paymentMonth }),
+          else {
+            const checklistMonth = payment?.checklistMonth ?? (payment?.status !== 'paid' ? payment?.paymentMonth : null)
+            next.payments[key] = {
+              ...(oneOff && { oneOff: true }),
+              ...(!partial && status !== 'auto' && { status }),
+              ...(status === 'paid' && checklistMonth && { checklistMonth }),
+              ...(partial && { partial }),
+              ...(keepAmount && { amount: amount ?? item.amount }),
+              ...(day != null && { day }),
+              ...(paymentMonth && { paymentMonth }),
+              ...(paidDate && { paidDate }),
+            }
           }
         }
       }
@@ -289,10 +301,15 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
             </label>)}
         </fieldset>
         {!['missed', 'partial'].includes(paymentStatus) && <>
-          <MonthField label={paymentStatus === 'paid' ? 'Month paid (optional)' : 'Planned payment month (optional)'}
-            name="paymentMonth" value={payment?.paymentMonth} required={false}
+          {paymentStatus === 'paid' && <label className="field"><span>Date paid (optional)</span>
+            <input name="paidDate" type="date" min="2000-01-01" max={today} defaultValue={payment?.paidDate} />
+          </label>}
+          <MonthField key={paymentStatus} label={paymentStatus === 'paid' ? 'Month paid if date is unknown' : 'Planned payment month (optional)'}
+            name="paymentMonth" value={paymentStatus === 'paid' && payment?.status !== 'paid' ? undefined : payment?.paymentMonth} required={false}
             max={paymentStatus === 'paid' ? today.slice(0, 7) : undefined} />
-          <p className="muted form-note">Leave blank to use the original month. Choose a different month to charge its budget.</p>
+          <p className="muted form-note">{paymentStatus === 'paid'
+            ? 'Enter the actual date to apply the salary rule. Leave both blank to use the original month.'
+            : 'Leave blank to use the original month. Choose a different month to charge its budget.'}</p>
         </>}
         {paymentStatus === 'partial' && <>
           <MoneyField label="Amount paid in original month" name="partialPaid" value={payment?.partial?.paid} />
@@ -300,8 +317,13 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
             value={payment?.partial?.month ?? addMonths(month, 1)} />
           <label className="check-field"><input type="checkbox" name="carrySettled" checked={carrySettled}
             onChange={event => setCarrySettled(event.target.checked)} /> Remaining balance paid</label>
-          {carrySettled && <MonthField label="Month paid (optional)" name="carryPaidMonth" min={month}
-            max={today.slice(0, 7)} value={payment?.partial?.paidMonth ?? ''} required={false} />}
+          {carrySettled && <>
+            <label className="field"><span>Date balance paid (optional)</span>
+              <input type="date" name="carryPaidDate" min={month + '-01'} max={today} defaultValue={payment?.partial?.paidDate} />
+            </label>
+            <MonthField label="Month paid if date is unknown" name="carryPaidMonth" min={month}
+              max={today.slice(0, 7)} value={payment?.partial?.paidMonth ?? ''} required={false} />
+          </>}
         </>}
         <div className="form-grid">
           <MoneyField label={paymentStatus === 'partial' ? 'Total amount due' : oneOff ? 'Amount for this month' : 'Amount for this month (optional)'} name="amount" value={payment?.amount}

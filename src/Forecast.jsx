@@ -85,7 +85,7 @@ export function OpeningCashEditor({ openingCash, month, close, save, data }) {
 export function CashProjectionNote({ opening, projection }) {
   if (!opening) return null
   return <div className="cash-projection-note">
-    <p><strong>Opening cash</strong> {money(opening.amount)} at the start of {monthLabel(opening.month, 'long')}.</p>
+    <p><strong>Opening cash</strong> {money(opening.amount)} at the start of {monthLabel(opening.month, 'long')}. Projection follows the budget months.</p>
     {projection.incomplete && <p className="forecast-incomplete">First month with unconfirmed spending: {monthLabel(projection.incomplete, 'long')}.</p>}
     {projection.missingIncome && <p className="forecast-incomplete">Set income for {monthLabel(projection.missingIncome, 'long')} to continue the cash projection.</p>}
   </div>

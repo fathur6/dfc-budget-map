@@ -23,13 +23,15 @@ export function commitmentChecklist(data, month, today) {
         if (entry.partial.month === month) {
           rows.push({ ...row, portion: 'remainder', amount: entry.amount - entry.partial.paid,
             status: entry.partial.settled ? 'paid' : 'scheduled',
-            paidMonth: entry.partial.settled ? entry.partial.paidMonth ?? month : null })
+            paidMonth: entry.partial.settled ? entry.partial.paidMonth ?? month : null,
+            paidDate: entry.partial.paidDate })
         }
       } else {
         const actual = entry.paymentMonth ?? dueMonth
         const planned = data.payments[key]?.checklistMonth ?? (entry.status === 'paid' && actual < dueMonth ? dueMonth : actual)
         if (planned === month && entry.amount > 0) {
-          rows.push({ ...row, status: entry.status, amount: entry.amount, paidMonth: entry.status === 'paid' ? actual : null })
+          rows.push({ ...row, status: entry.status, amount: entry.amount, paidMonth: entry.status === 'paid' ? actual : null,
+            paidDate: entry.paidDate })
         }
       }
     }
@@ -43,9 +45,9 @@ export function markCommitmentPaid(data, row, month, today) {
   let payment
   if (row.portion === 'remainder') {
     if (paidMonth < row.dueMonth) throw new Error('Check the date of the original partial payment before settling the remainder.')
-    payment = { ...previous, partial: { ...previous.partial, settled: true, paidMonth } }
+    payment = { ...previous, partial: { ...previous.partial, settled: true, paidMonth, paidDate: today } }
   } else {
-    payment = { ...previous, status: 'paid', amount: row.amount, checklistMonth: month }
+    payment = { ...previous, status: 'paid', amount: row.amount, checklistMonth: month, paidDate: today }
     if (paidMonth === row.dueMonth) delete payment.paymentMonth
     else payment.paymentMonth = paidMonth
   }

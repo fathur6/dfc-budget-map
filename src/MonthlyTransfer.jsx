@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowDownLeft, ArrowLeftRight, Check, CreditCard, Wallet } from 'lucide-react'
-import { money, monthLabel, parseMoney } from './budget.js'
+import { addMonths, dateLabel, money, monthLabel, parseMoney, todayMYT } from './budget.js'
 import { MoneyField } from './editors.jsx'
 import { commitmentChecklist, markCommitmentPaid, spendingChecklist } from './transfers.js'
 
@@ -26,6 +26,8 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
   const current = today.slice(0, 7)
   const baseIncome = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
   const additional = summary.otherIncome + summary.loanProceeds
+  const salaryReceived = data.salaryReceipts?.[month]
+  const canRecordReceipt = month === current || month === addMonths(current, 1)
 
   async function update(change) {
     if (saving) return
@@ -47,7 +49,18 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
       setError('Enter a valid amount with up to two decimal places.')
       return
     }
-    return update(() => ({ ...data, incomeByMonth: { ...data.incomeByMonth, [month]: income } }))
+    const received = event.nativeEvent.submitter?.value === 'received'
+    const paymentDate = todayMYT()
+    const receivedMonth = paymentDate.slice(0, 7)
+    if (received && month !== receivedMonth && month !== addMonths(receivedMonth, 1)) {
+      setError('Select the current or next budget month to record salary received.')
+      return
+    }
+    return update(() => ({
+      ...data,
+      incomeByMonth: { ...data.incomeByMonth, [month]: income },
+      ...(received && { salaryReceipts: { ...data.salaryReceipts, [month]: paymentDate } }),
+    }))
   }
 
   function toggleTransfer(row) {
@@ -64,16 +77,18 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
     <section className="panel transfer-income" aria-labelledby="transfer-income-title">
       <div className="panel-heading">
         <div><div className="section-title"><ArrowDownLeft size={19} /><h2 id="transfer-income-title">Cash inflow</h2></div>
-          <p>Save the take-home salary for {monthLabel(month, 'long')}.</p></div>
+          <p>{salaryReceived ? `Salary received on ${dateLabel(salaryReceived)} · ${monthLabel(month, 'long')} budget`
+            : `Save the take-home salary for ${monthLabel(month, 'long')}.`}</p></div>
         <div className="transfer-inflow-value"><strong>{money(summary.cashInflow)}</strong>
           {additional > 0 && <small>Includes {money(additional)} in other inflows</small>}</div>
       </div>
       <form className="transfer-income-form" onSubmit={saveIncome}>
         <MoneyField key={baseIncome} name="income" label="Take-home salary" value={baseIncome} placeholder="Enter monthly salary" />
-        <button type="submit" className="button primary" disabled={saving}>Save income</button>
+        <button type="submit" className={canRecordReceipt && !salaryReceived ? 'button secondary' : 'button primary'} disabled={saving}>Save income</button>
+        {canRecordReceipt && !salaryReceived && <button type="submit" value="received" className="button primary" disabled={saving}>Salary received</button>}
       </form>
     </section>
-    <p className="transfer-instruction">Tick each item after completing it in your banking app. Payments marked today use {monthLabel(current)} for cash flow.</p>
+    <p className="transfer-instruction">Tick each item after completing it in your banking app. Payments for next month count toward that budget from the 21st, or from an earlier salary receipt. Spending transfers use the month shown.</p>
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="transfer-checklists" aria-busy={saving}>
       <Checklist id="checklist-commitments" title="Commitment payments" icon={CreditCard} rows={commitments}
@@ -84,12 +99,13 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
               onClick={() => open({ type: 'payment', item: row.item, month: row.dueMonth })} disabled={saving}>{row.item.name}</button>
             <small>{row.portion === 'remainder' ? 'Carried balance · ' : row.portion === 'partial' ? 'Partial payment · ' : ''}
               Due {Number(row.due.slice(-2))} {monthLabel(row.dueMonth)}
-              {row.paidMonth && row.paidMonth !== month && ' · Paid in ' + monthLabel(row.paidMonth)}</small>
+              {row.paidDate ? ' · Paid on ' + dateLabel(row.paidDate)
+                : row.paidMonth && row.paidMonth !== month && ' · Paid in ' + monthLabel(row.paidMonth)}</small>
           </div>
           <strong className="transfer-row-amount">{money(row.amount)}</strong>
           {row.status === 'paid' ? <span className="transfer-complete"><Check size={14} /> Paid</span>
             : <button type="button" className="button secondary" aria-label={'Mark ' + row.item.name + (row.portion === 'remainder' ? ' carried balance' : '') + ' paid'}
-              disabled={saving} onClick={() => update(() => markCommitmentPaid(data, row, month, today))}>Mark paid</button>}
+              disabled={saving} onClick={() => update(() => markCommitmentPaid(data, row, month, todayMYT()))}>Mark paid</button>}
         </>}
       </Checklist>
       <Checklist id="checklist-spending" title="Spending transfers" icon={Wallet} rows={spending}

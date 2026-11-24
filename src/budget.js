@@ -2,6 +2,9 @@ const mytDate = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit',
 })
 const currency = new Intl.NumberFormat('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const dayLabel = new Intl.DateTimeFormat('en-MY', {
+  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+})
 
 export function todayMYT(now = new Date()) {
   return mytDate.format(now)
@@ -40,6 +43,31 @@ export function inputMoney(sen) {
 
 export const validMonth = month => typeof month === 'string' && /^(20[0-9]{2}|2100)-(0[1-9]|1[0-2])$/.test(month)
 
+export function validDate(date) {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !validMonth(date.slice(0, 7))) return false
+  const day = Number(date.slice(-2))
+  return day > 0 && dueDate(date.slice(0, 7), day) === date
+}
+
+export function dateLabel(date) {
+  return dayLabel.format(new Date(date + 'T00:00:00Z'))
+}
+
+export function salaryChecklistMonth(data, month, today) {
+  const current = today.slice(0, 7)
+  const next = addMonths(current, 1)
+  if (month !== current || !validMonth(next)) return month
+  return Number(today.slice(-2)) > 20 || data.salaryReceipts?.[next]?.slice(0, 7) === current ? next : month
+}
+
+function paymentBudgetMonth(data, actual, target, paidDate, hasLegacyTarget) {
+  if (!validMonth(target) || target !== addMonths(actual, 1)) return actual
+  const received = data.salaryReceipts?.[target]
+  const afterReceipt = received?.slice(0, 7) === actual && received <= paidDate
+  const belongsToNext = paidDate ? Number(paidDate.slice(-2)) > 20 || afterReceipt : hasLegacyTarget
+  return belongsToNext ? target : actual
+}
+
 export function emptyBudget() {
   return { income: null, incomeByMonth: {}, incomeSourcesByMonth: {}, commitments: [], categories: [], payments: {}, spending: {} }
 }
@@ -60,12 +88,19 @@ export function installment(data, commitment, month, today) {
   const override = data.payments[paymentKey(commitment.id, month)]
   if (!active(commitment, month) && !override?.oneOff) return null
   const due = dueDate(month, override?.day ?? commitment.day)
+  const actual = override?.paymentMonth || month
+  const paid = override?.status === 'paid'
+  const budgetMonth = paid
+    ? paymentBudgetMonth(data, actual, override.checklistMonth ?? month, override.paidDate, Boolean(override.checklistMonth))
+    : actual
   return {
     due,
     amount: override?.amount ?? commitment.amount,
     ...(override?.partial && { partial: override.partial }),
     ...(override?.paymentMonth && { paymentMonth: override.paymentMonth }),
-    status: override?.status === 'paid' ? 'paid'
+    ...(override?.paidDate && { paidDate: override.paidDate }),
+    ...(budgetMonth !== actual && { budgetMonth }),
+    status: paid ? 'paid'
       : override?.status === 'missed' || (!commitment.provisional && due < today) ? 'missed' : 'scheduled',
   }
 }
@@ -86,13 +121,13 @@ export function spendingReviewKey(data, month) {
 export function monthSummary(data, month, today) {
   const original = data.commitments.flatMap(item => {
     const entry = installment(data, item, month, today)
-    return entry ? [{ ...entry, id: item.id, name: item.name, dueMonth: month }] : []
+    return entry ? [allocatedInstallment(entry, item, month)] : []
   })
   const allocated = original.map(entry => entry.partial
-    ? { ...entry, amount: entry.partial.paidMonth === month ? entry.amount : entry.partial.paid, status: 'paid' } : entry)
+    ? { ...entry, amount: carriedBalance(data, entry).paymentMonth === month ? entry.amount : entry.partial.paid, status: 'paid' } : entry)
   const movedOut = [
     ...original.filter(entry => entry.paymentMonth && entry.paymentMonth !== month),
-    ...original.filter(entry => entry.partial).map(carriedBalance).filter(entry => entry.paymentMonth !== month),
+    ...original.filter(entry => entry.partial).map(entry => carriedBalance(data, entry)).filter(entry => entry.paymentMonth !== month),
   ]
   const movedIn = movedInstallments(data, today).filter(entry => entry.paymentMonth === month)
   const commitments = [...allocated.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
@@ -166,11 +201,24 @@ export function projectClosingCash(data, months, summaries, today) {
   return { balances, incomplete, missingIncome }
 }
 
-function carriedBalance(entry) {
+function allocatedInstallment(entry, item, dueMonth) {
+  return {
+    ...entry, id: item.id, name: item.name, dueMonth,
+    ...(entry.budgetMonth && { paymentMonth: entry.budgetMonth, paidMonth: entry.paymentMonth ?? dueMonth }),
+  }
+}
+
+export function carriedBudgetMonth(data, partial) {
+  const actual = partial.paidMonth ?? partial.month
+  return partial.settled ? paymentBudgetMonth(data, actual, partial.month, partial.paidDate, Boolean(partial.paidMonth)) : actual
+}
+
+function carriedBalance(data, entry) {
   return {
     ...entry,
     amount: entry.amount - entry.partial.paid,
-    paymentMonth: entry.partial.paidMonth ?? entry.partial.month,
+    paymentMonth: carriedBudgetMonth(data, entry.partial),
+    ...(entry.partial.settled && { paidMonth: entry.partial.paidMonth ?? entry.partial.month, paidDate: entry.partial.paidDate }),
     status: entry.partial.settled ? 'paid' : 'scheduled',
   }
 }
@@ -179,12 +227,12 @@ function movedInstallments(data, today) {
   const commitments = new Map(data.commitments.map(item => [item.id, item]))
   return Object.entries(data.payments).flatMap(([key, payment]) => {
     const [id, dueMonth] = key.split(':')
-    if (!payment.partial && (!payment.paymentMonth || payment.paymentMonth === dueMonth)) return []
+    if (!payment.partial && !payment.paymentMonth && !payment.checklistMonth) return []
     const item = commitments.get(id)
     const entry = item && installment(data, item, dueMonth, today)
     if (!entry) return []
-    const original = { ...entry, id, name: item.name, dueMonth }
-    const moved = entry.partial ? carriedBalance(original) : original
+    const original = allocatedInstallment(entry, item, dueMonth)
+    const moved = entry.partial ? carriedBalance(data, original) : original
     return moved.paymentMonth === dueMonth ? [] : [moved]
   })
 }

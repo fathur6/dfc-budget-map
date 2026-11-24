@@ -8,8 +8,8 @@ import {
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import {
-  active, addMonths, categoryMonth, emptyBudget, installment, money, monthLabel, monthSummary,
-  paymentKey, projectClosingCash, todayMYT, validMonth,
+  active, addMonths, carriedBudgetMonth, categoryMonth, dateLabel, emptyBudget, installment, money, monthLabel, monthSummary,
+  paymentKey, projectClosingCash, salaryChecklistMonth, todayMYT, validMonth,
 } from './budget.js'
 import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
@@ -151,12 +151,16 @@ function CommitmentBreakdown({ month, summary, close }) {
       <dl className="transfer-breakdown">
         <div><dt>Originally due</dt><dd>{money(summary.scheduledCommitment)}</dd></div>
         {summary.movedIn.map(entry => <div key={'in:' + paymentKey(entry.id, entry.dueMonth)}>
-          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid' : 'Planned'} · Due {monthLabel(entry.dueMonth)}
+          <dt>{entry.name}<small>{entry.status === 'paid'
+            ? entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid' : 'Planned'} · Due {monthLabel(entry.dueMonth)}
             {entry.partial && ' · Carried from a partial payment'}</small></dt>
           <dd className="transfer-in">+{money(entry.amount)}</dd>
         </div>)}
         {summary.movedOut.map(entry => <div key={'out:' + paymentKey(entry.id, entry.dueMonth)}>
-          <dt>{entry.name}<small>{entry.status === 'paid' ? 'Paid in ' : 'Planned for '}{monthLabel(entry.paymentMonth)}
+          <dt>{entry.name}<small>{entry.status === 'paid'
+            ? (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paidMonth ?? entry.paymentMonth))
+            : 'Planned for ' + monthLabel(entry.paymentMonth)}
+            {entry.paidMonth && entry.paidMonth !== entry.paymentMonth && ' · ' + monthLabel(entry.paymentMonth) + ' budget'}
             {entry.partial && ' · Carried from a partial payment'}</small></dt>
           <dd className="transfer-out">{money(-entry.amount)}</dd>
         </div>)}
@@ -284,8 +288,8 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const entry = installment(data, item, value, today)
             const carried = carriedByMonth.get(value).filter(payment => payment.id === item.id)
             const carriedTotal = carried.reduce((sum, payment) => sum + payment.amount, 0)
-            const moved = entry?.paymentMonth && entry.paymentMonth !== value
-            const ownAmount = moved ? 0 : entry?.partial && entry.partial.paidMonth !== value
+            const assigned = entry?.budgetMonth ?? entry?.paymentMonth ?? value
+            const ownAmount = assigned !== value ? 0 : entry?.partial && carriedBudgetMonth(data, entry.partial) !== value
               ? entry.partial.paid : entry?.amount ?? 0
             const shownAmount = carriedTotal ? ownAmount + carriedTotal : entry?.amount
             const status = entry?.partial
@@ -298,8 +302,11 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const carryNote = carriedTotal ? money(carriedTotal) + ' carried in' : ''
             const movement = entry?.partial
               ? money(entry.partial.paid) + ' paid · ' + money(entry.amount - entry.partial.paid)
-                + (entry.partial.settled ? ' paid in ' : ' carried to ') + monthLabel(entry.partial.paidMonth ?? entry.partial.month)
-              : moved ? (entry.status === 'paid' ? 'Paid in ' : 'Planned for ') + monthLabel(entry.paymentMonth) : ''
+                + (entry.partial.settled ? (entry.partial.paidDate ? ' paid on ' + dateLabel(entry.partial.paidDate)
+                  : ' paid in ' + monthLabel(entry.partial.paidMonth ?? entry.partial.month)) : ' carried to ' + monthLabel(entry.partial.month))
+              : entry?.status === 'paid' && (entry.paidDate || entry.paymentMonth !== undefined)
+                ? (entry.budgetMonth ? 'On time · ' : '') + (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paymentMonth))
+                : assigned !== value ? 'Planned for ' + monthLabel(assigned) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
               {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
                 aria-label={[item.name, monthLabel(value, 'long'), money(shownAmount), carryNote, status?.label, movement].filter(Boolean).join(', ')}
@@ -552,7 +559,7 @@ function App() {
               <button className="button secondary this-month" onClick={() => chooseMonth(current)} disabled={month === current}>This month</button>
               {transferPageActive
                 ? <button className="button secondary" onClick={() => navigate('overview')}>Back to Overview</button>
-                : <button className="button secondary" onClick={() => navigate(transferPage[0] + '/' + month)}><ListChecks size={16} /> Monthly Transfer</button>}
+                : <button className="button secondary" onClick={() => navigate(transferPage[0] + '/' + salaryChecklistMonth(data, month, today))}><ListChecks size={16} /> Monthly Transfer</button>}
               <div className="month-switcher">
                 <button aria-label="Previous month" onClick={() => chooseMonth(addMonths(month, -1))} disabled={month <= '2000-01'}><ChevronLeft size={17} /></button>
                 <button className="choose-month" aria-label="Choose month" onClick={() => setEditor({ type: 'month' })}><CalendarDays size={15} /> {monthLabel(month)}</button>
@@ -605,7 +612,8 @@ function App() {
     {editor?.type === 'help' && <Modal title="How it works" close={() => setEditor(null)}>
       <div className="editor help-copy">
         <p>Open an income cell to enter base income and additional sources for that month. Record loan proceeds there and add repayments in the Commitment Map. Set the same first and last month for a one-off bill.</p>
-        <p>Each commitment cell stays in its original due month. Choose a different payment month when planning or recording an early or late payment. Open View transfers in Monthly Summary to see which payments were moved.</p>
+        <p>Each commitment cell stays in its original due month. Record the actual payment date and use View transfers in Monthly Summary to see month allocations.</p>
+        <p>Record Salary received in Monthly Transfer for the intended budget month. Payments for next month count toward that budget from the 21st, or from an earlier recorded salary receipt. Spending transfers use the selected month.</p>
         <p>Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
         <p>The Overview and Monthly Summary balances use income plus loan proceeds, minus commitments and recorded spending. The simulator also uses recorded spending. Empty spending cells count as zero.</p>
         <p>Confirm spending once you have reviewed a month. An opening cash balance adds a projection of closing cash to Monthly Summary.</p>
