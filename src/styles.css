@@ -238,10 +238,10 @@ button.transfer-complete:hover:not(:disabled) { background: #204638; }
 .row-icon { width: 27px; height: 27px; border-color: #33404a; color: #a8b9c9; background: #1c252e; border-radius: 7px; }
 .tile, .inactive-tile { display: flex; justify-content: center; align-items: center; gap: 5px; width: 100%; min-height: 38px; padding: 5px 4px; border: 1px solid; border-radius: 6px; font: 570 clamp(9px, .83vw, 12px) var(--mono); white-space: nowrap; }
 .tile:hover { filter: brightness(1.28); transform: translateY(-1px); }
-.tile.paid { color: var(--green); background: #173429; border-color: #2d5a46; }
 .tile.scheduled { color: var(--amber); background: #2c2518; border-color: #56472a; }
 .tile.missed { color: var(--red); background: #362027; border-color: #663440; }
 .tile.recorded-spend { color: #b8e2f9; background: #1a2a38; border-color: #365469; }
+.tile.paid, .tile.transferred-spend { color: var(--green); background: #173429; border-color: #2d5a46; }
 .recorded-spend[draggable="true"] { cursor: grab; }
 #spending .spending-drop-target { border-color: var(--green); }
 .inactive-tile { border: 1px dashed #33404a; color: var(--dim); }

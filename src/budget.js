@@ -122,7 +122,7 @@ export function installment(data, commitment, month, today) {
 export function categoryMonth(data, category, month) {
   if (!active(category, month)) return null
   const entry = data.spending[paymentKey(category.id, month)]
-  return { spent: entry?.spent ?? null }
+  return { spent: entry?.spent ?? null, transferred: entry?.transferred === true }
 }
 
 export function spendingReviewKey(data, month) {

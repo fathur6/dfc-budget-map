@@ -116,7 +116,7 @@ export function spendingChecklist(data, month) {
     const entry = categoryMonth(data, item, month)
     if (!entry || entry.spent === 0) return []
     const key = paymentKey(item.id, month)
-    return [{ key, item, amount: entry.spent, transferred: data.spending[key]?.transferred === true }]
+    return [{ key, item, amount: entry.spent, transferred: entry.transferred }]
   })
 }
 

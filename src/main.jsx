@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Activity, ArrowDownLeft, ArrowRight, CalendarDays, CarFront, ChevronLeft,
+  Activity, ArrowDownLeft, ArrowRight, CalendarDays, CarFront, Check, ChevronLeft,
   ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, GripVertical, Grid2X2, House, KeyRound, Layers3, LogIn,
   ListChecks, LogOut, Pencil, Plus, ShieldCheck, Wallet, Zap,
 } from 'lucide-react'
@@ -380,13 +380,15 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
         {months.map(value => {
           const entry = categoryMonth(data, item, value)
           const recorded = entry?.spent != null
+          const tileClass = entry?.transferred ? 'tile recorded-spend transferred-spend' : 'tile recorded-spend'
           const label = item.name + ', ' + monthLabel(value, 'long')
           const editable = entry && value >= '2000-01' && value <= '2100-12'
           const canDrop = editable && dragged?.id === item.id && dragged.month !== value
           return <td key={value} className={value === month ? 'selected-col' : ''}>
             {editable
-              ? <button type="button" className={(recorded ? 'tile recorded-spend' : 'inactive-tile') + (canDrop ? ' spending-drop-target' : '')}
-                aria-label={recorded ? 'Edit spending for ' + label + ', ' + money(entry.spent) : 'Add spending for ' + label}
+              ? <button type="button" className={(recorded ? tileClass : 'inactive-tile') + (canDrop ? ' spending-drop-target' : '')}
+                aria-label={recorded ? 'Edit spending for ' + label + ', ' + money(entry.spent) + (entry.transferred ? ', transferred' : '')
+                  : 'Add spending for ' + label}
                 draggable={recorded}
                 onDragStart={recorded ? event => {
                   event.dataTransfer.effectAllowed = 'copy'
@@ -404,7 +406,7 @@ function Spending({ data, months, month, current, summaries, chooseMonth, open, 
                   setDragged(null)
                 } : undefined}
                 onClick={() => open({ type: 'spending', item, month: value })}>
-                {money(entry.spent)}
+                {recorded && entry.transferred && <Check size={14} aria-hidden="true" />}{money(entry.spent)}
               </button>
               : !entry && value >= '2000-01' && value <= '2100-12'
                 ? <button type="button" className="inactive-tile"
