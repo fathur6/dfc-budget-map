@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ArrowRight, Check, Clock3, Plus, X } from 'lucide-react'
-import { active, addMonths, categoryMonth, dateLabel, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, remainingInstallment, spendingCategories, validDate } from './budget.js'
+import { active, addMonths, categoryMonth, commitmentCategories, dateLabel, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, remainingInstallment, spendingCategories, validDate, validMonth } from './budget.js'
 import { readBackup } from './backup.js'
 import { allocationRows } from './transfers.js'
+import { convertSpendingToCommitment, spendingConversionPlan } from './spendingConversion.js'
 
 export const statuses = {
   paid: { label: 'Paid', icon: Check },
@@ -33,12 +34,11 @@ export function MoneyField({ label, name, value, required = true, placeholder = 
   </div></label>
 }
 
-export const categories = ['Housing', 'Transport', 'Utilities', 'Financing', 'Insurance', 'Subscriptions', 'Other']
 const monthPattern = '(20[0-9]{2}|2100)-(0[1-9]|1[0-2])'
-export function MonthField({ label, name, value, required = true, min = '2000-01', max = '2100-12' }) {
+export function MonthField({ label, name, value, required = true, min = '2000-01', max = '2100-12', onChange }) {
   return <label className="field"><span>{label}</span>
     <input type="month" name={name} defaultValue={value} min={min} max={max} pattern={monthPattern}
-      placeholder="YYYY-MM" required={required} />
+      placeholder="YYYY-MM" required={required} onChange={onChange} />
   </label>
 }
 
@@ -76,6 +76,10 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const [confirm, setConfirm] = useState(false)
   const { type, item } = editor
   const data = snapshot.budget
+  const converting = type === 'convert-spending'
+  const conversion = item && (type === 'category' || converting) ? spendingConversionPlan(data, item, today) : null
+  const [transferStart, setTransferStart] = useState(conversion?.start ?? '')
+  const linkedSpending = item?.spendingSourceId && data.categories.find(source => source.id === item.spendingSourceId)
   const [incomeRows, setIncomeRows] = useState(() => (type === 'income' ? data.incomeSourcesByMonth?.[month] ?? [] : [])
     .map((source, index) => ({ ...source, key: String(index) })))
   const newIncomeRow = useRef(null)
@@ -99,6 +103,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     income: 'Income for ' + monthLabel(month, 'long'), commitment: item ? 'Edit commitment' : 'Add commitment',
     payment: entry ? item?.name : 'Add payment for ' + item?.name,
     category: item ? 'Edit spending item' : 'Add spending item',
+    'convert-spending': 'Transfer as commitment',
     spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
   }
   const allocationMonth = editor.allocationMonth ?? month
@@ -143,6 +148,13 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     setError('')
     setBusy(true)
     try {
+      if (converting) {
+        await save(convertSpendingToCommitment(data, {
+          itemId: item.id, start: readMonth(get('start')), amount: readAmount(get('amount'), { positive: true }),
+          day: Number(get('day')), category: get('category'),
+        }, today))
+        return
+      }
       if (type === 'import') {
         const file = form.get('backup')
         if (!file?.size || file.size > 1048576) throw new Error('Choose a budget backup under 1 MB.')
@@ -178,6 +190,12 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           const start = readMonth(get('start'))
           const end = readMonth(get('end'), true)
           if (end && end < start) throw new Error('The end month must be on or after the start month.')
+          if (type === 'category' && conversion?.linked && (!end || end >= conversion.linked.start)) {
+            throw new Error('End this spending item before its linked commitment starts in ' + monthLabel(conversion.linked.start, 'long') + '.')
+          }
+          if (type === 'commitment' && linkedSpending && (!linkedSpending.end || start <= linkedSpending.end)) {
+            throw new Error('Start this commitment after the linked spending item ends.')
+          }
           const overrides = type === 'commitment' ? data.payments : data.spending
           if (item && Object.entries(overrides).some(([key, entry]) => {
             const [id, month] = key.split(':')
@@ -186,7 +204,8 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           })) throw new Error('The schedule must include all months with recorded entries.')
           const common = { id: item?.id ?? crypto.randomUUID(), name: readName(get('name')), start, end }
           const record = type === 'commitment'
-            ? { ...common, category: get('category'), provisional: form.has('provisional'), amount: readAmount(get('amount'), { positive: true }), day: Number(get('day')) }
+            ? { ...common, category: get('category'), provisional: form.has('provisional'), amount: readAmount(get('amount'), { positive: true }), day: Number(get('day')),
+              ...(item?.spendingSourceId && { spendingSourceId: item.spendingSourceId }) }
             : { ...common, ...(get('spendingCategory') && { category: get('spendingCategory') }) }
           if (type === 'category' && item) {
             for (const [key, entry] of Object.entries(next.spending)) {
@@ -202,6 +221,9 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         if (remove) {
           delete next.payments[key]
         } else {
+          if (oneOff && linkedSpending && active(linkedSpending, month)) {
+            throw new Error('This month belongs to the linked spending item.')
+          }
           const amount = readAmount(get('amount'), { optional: !oneOff })
           const paidDate = status === 'paid' ? readPaidDate(get('paidDate'), today) : ''
           const paymentMonth = ['missed', 'partial'].includes(status) ? ''
@@ -310,7 +332,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         {type === 'commitment' ? <div className="form-grid">
           <MoneyField label="Monthly amount" name="amount" value={item?.amount} />
           <label className="field"><span>Category</span><select name="category" defaultValue={item?.category ?? 'Other'}>
-            {categories.map(category => <option key={category}>{category}</option>)}
+            {commitmentCategories.map(category => <option key={category}>{category}</option>)}
           </select></label>
           <label className="field"><span>Due day each month</span>
             <input type="number" name="day" min="1" max="31" step="1" defaultValue={item?.day ?? 1} required />
@@ -322,6 +344,33 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           <MonthField label="Last month (optional)" name="end" value={item?.end} required={false} />
         </div>
         {item && <p className="muted form-note">To record a monthly amount, open its cell.</p>}
+        {type === 'category' && item && <details className="spending-advanced">
+          <summary>Advanced</summary>
+          {conversion.linked ? <p className="muted form-note">Linked to {conversion.linked.name} in Commitment Map from {monthLabel(conversion.linked.start, 'long')}.</p>
+            : conversion.available ? <button type="button" className="button secondary" disabled={busy}
+              onClick={() => open({ type: 'convert-spending', item })}>Transfer as commitment <ArrowRight size={15} aria-hidden="true" /></button>
+              : <p className="muted form-note">There are no future months available after existing transfers and confirmed spending.</p>}
+        </details>}
+      </>}
+      {converting && <>
+        <p className="form-note">Move <strong>{item.name}</strong> to Commitment Map for future months.</p>
+        <div className="form-grid">
+          <MonthField label="Start month" name="start" value={transferStart} min={conversion.start} max={item.end || '2100-12'}
+            onChange={event => setTransferStart(event.currentTarget.value)} />
+          <MoneyField label="Monthly amount" name="amount" value={conversion.amount} />
+          <label className="field"><span>Due day each month</span>
+            <input type="number" name="day" min="1" max="31" step="1" required /></label>
+          <label className="field"><span>Commitment category</span>
+            <select name="category" defaultValue={commitmentCategories.includes(item.category) ? item.category : 'Other'}>
+              {commitmentCategories.map(category => <option key={category}>{category}</option>)}
+            </select>
+          </label>
+        </div>
+        {validMonth(transferStart) && transferStart >= conversion.start && active(item, transferStart) && <div className="spending-conversion-preview">
+          {transferStart > item.start && <p><strong>Monthly Spending</strong> keeps its history through {monthLabel(addMonths(transferStart, -1), 'long')}.</p>}
+          <p><strong>Commitment Map</strong> starts in {monthLabel(transferStart, 'long')}{item.end ? ' and ends in ' + monthLabel(item.end, 'long') : ''}.</p>
+          <p>Saved amounts from the start month move as scheduled amounts. Months without an entry use the monthly amount.</p>
+        </div>}
       </>}
       {type === 'payment' && <>
         <p className="muted form-note">{monthLabel(month, 'long')} · due {new Intl.DateTimeFormat('en-MY', {
@@ -408,7 +457,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}
         <div className="spacer" />
         <button type="button" className="button secondary" disabled={busy} onClick={close}>Cancel</button>
-        <button type="submit" className="button primary" disabled={busy} data-initial-focus={copying && editor.month ? "" : undefined}>{busy ? 'Saving…' : copying ? 'Copy value' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
+        <button type="submit" className="button primary" disabled={busy} data-initial-focus={copying && editor.month ? "" : undefined}>{busy ? 'Saving…' : copying ? 'Copy value' : converting ? 'Transfer as commitment' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
       </footer>
     </form>
   </Modal>

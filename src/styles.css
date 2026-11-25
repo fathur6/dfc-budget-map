@@ -320,6 +320,11 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .income-source > legend { color: var(--muted); font-size: 11px; padding-inline: 4px; }
 .income-source-name { grid-column: 1 / 3; }
 .income-source > button { grid-column: 3; grid-row: 1; min-height: 38px; }
+.spending-advanced { padding-top: 8px; border-top: 1px solid var(--line); }
+.spending-advanced summary { width: fit-content; padding: 4px 0; color: #dbe5ef; font-size: 12px; font-weight: 600; cursor: pointer; }
+.spending-advanced > :is(button, p) { margin-top: 8px; }
+.spending-conversion-preview { display: grid; gap: 5px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--canvas); color: var(--muted); font-size: 12px; line-height: 1.45; }
+.spending-conversion-preview strong { color: #dbe5ef; }
 .form-error { padding: 9px; border-radius: 6px; background: #362027; color: #ffb2bc; font-size: 12px; line-height: 1.4; }
 .link-button { text-decoration: underline; padding: 1px 4px; }
 .status-picker { display: flex; flex-wrap: wrap; gap: 7px; border: 0; padding: 0; margin: 0; }

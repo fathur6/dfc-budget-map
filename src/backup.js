@@ -59,6 +59,7 @@ export function readBackup(text) {
     || !validateItems(budget.commitments, item => validAmount(item.amount) && item.amount > 0
       && Number.isInteger(item.day) && item.day >= 1 && item.day <= 31
       && typeof item.category === 'string' && item.category.length <= 40
+      && (item.spendingSourceId === undefined || validId(item.spendingSourceId))
       && (item.provisional === undefined || typeof item.provisional === 'boolean'))
     || !validateItems(budget.categories, item => item.category === undefined || spendingCategories.includes(item.category))
     || !validateEntries(budget.payments, budget.commitments, (item, month) =>

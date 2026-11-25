@@ -75,6 +75,7 @@ export function emptyBudget() {
 }
 
 export const spendingCategories = ['Food & household', 'Family support', 'Transport', 'Childcare', 'Insurance', 'Education', 'Subscriptions', 'Other']
+export const commitmentCategories = ['Housing', 'Transport', 'Utilities', 'Financing', 'Insurance', 'Subscriptions', 'Other']
 
 export const incomeSourceTypes = ['Gift', 'Project', 'Loan proceeds', 'Incentive', 'Freelance', 'Other']
 
