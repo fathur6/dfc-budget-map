@@ -18,7 +18,7 @@ The Vercel button deploys the frontend. Database initialization and the first pr
 
 ## Release version
 
-The sidebar displays the version and build number from `package.json`. Update `version` when publishing a new release and increment `buildNumber` for each published build. If the package version changes, update the package lock as well.
+The sidebar takes the major version and `buildNumber` from `package.json`. With major version 2, builds 18, 19 and 20 display as `v2.1.8`, `v2.1.9` and `v2.2.0`. Increment `buildNumber` for each new build. If the package version changes, update the package lock as well.
 
 ## Run locally
 
