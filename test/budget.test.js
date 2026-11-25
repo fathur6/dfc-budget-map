@@ -20,10 +20,10 @@ test('uses MYT midnight and handles short months and year boundaries', () => {
 
 test('counts all commitments in the forecast and isolates unpaid balances', () => {
   const now = monthSummary(data, '2026-11', today)
-  assert.equal(now.committed, 313000)
+  assert.equal(now.committed, 335000)
   assert.equal(now.paidTotal, 243000)
-  assert.equal(now.outstanding, 70000)
-  assert.equal(now.balance, 346000)
+  assert.equal(now.outstanding, 92000)
+  assert.equal(now.balance, 324000)
   assert.equal(monthSummary(data, '2027-01', today).committed, 281500)
 })
 
@@ -76,7 +76,7 @@ test('ignores legacy spending budgets and allows zero income', () => {
   const result = monthSummary(changed, '2026-11', today)
   assert.equal(result.spent, 299000)
   assert.equal(result.income, 0)
-  assert.equal(result.balance, -612000)
+  assert.equal(result.balance, -634000)
   assert.equal(monthSummary(emptyBudget(), '2026-11', today).balance, null)
   changed.incomeByMonth['2026-11'] = null
   assert.equal(monthSummary(changed, '2026-11', today).balance, null)
@@ -84,7 +84,7 @@ test('ignores legacy spending budgets and allows zero income', () => {
 
 test('uses only recorded spending for the summary balance and distinguishes zero from missing', () => {
   const changed = structuredClone(data)
-  assert.equal(monthSummary(changed, '2026-11', today).balance, 346000)
+  assert.equal(monthSummary(changed, '2026-11', today).balance, 324000)
   assert.equal(monthSummary(changed, '2026-12', today).balance, 537000)
   changed.spending['food:2026-12'] = { spent: 0 }
   assert.equal(monthSummary(changed, '2026-12', today).balance, 537000)
@@ -104,7 +104,7 @@ test('adds extra income and loan proceeds to cash flow for the selected month on
   assert.equal(result.income, 945000)
   assert.equal(result.loanProceeds, 500000)
   assert.equal(result.cashInflow, 1445000)
-  assert.equal(result.balance, 941000)
+  assert.equal(result.balance, 919000)
   assert.equal(monthSummary(changed, '2026-12', today).cashInflow, 850000)
   assert.equal(simulate(changed, { start: '2026-11', duration: 1, amount: 10000, buffer: 0 }, today).remaining, 409000)
   changed.incomeByMonth['2026-11'] = 0
@@ -113,7 +113,7 @@ test('adds extra income and loan proceeds to cash flow for the selected month on
   assert.equal(monthSummary(changed, '2026-11', today).balance, null)
 })
 
-test('includes a one-off payment outside the schedule in only its selected month', () => {
+test('includes a one-off instalment outside the schedule and carries it once if overdue', () => {
   const changed = structuredClone(data)
   const device = changed.commitments.find(item => item.id === 'plan')
   changed.payments['plan:2027-02'] = { oneOff: true, amount: 12345, day: 31 }
@@ -122,20 +122,25 @@ test('includes a one-off payment outside the schedule in only its selected month
     { due: '2027-02-28', amount: 12345, status: 'missed' })
   assert.equal(installment(changed, device, '2027-01', overdue), null)
   assert.equal(installment(changed, device, '2027-03', overdue), null)
-  assert.equal(monthSummary(changed, '2027-02', overdue).committed,
-    monthSummary(data, '2027-02', overdue).committed + 12345)
-  assert.equal(outstandingBefore(changed, '2027-03', overdue),
-    outstandingBefore(data, '2027-03', overdue) + 12345)
+  assert.equal(monthSummary(changed, '2027-02', overdue).scheduledCommitment,
+    monthSummary(data, '2027-02', overdue).scheduledCommitment + 12345)
+  assert.equal(monthSummary(changed, '2027-02', overdue).committed, 0)
+  assert.equal(monthSummary(changed, '2027-03', overdue).committed,
+    monthSummary(data, '2027-03', overdue).committed + 12345)
+  assert.equal(outstandingBefore(changed, '2027-03', overdue), 0)
+  assert.equal(outstandingBefore(changed, '2027-04', overdue),
+    outstandingBefore(data, '2027-04', overdue) + 12345)
   assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: changed })), changed)
 })
 
 test('tests the whole term, the user buffer and earlier missed payments once', () => {
   const changed = structuredClone(data)
   changed.incomeByMonth['2027-01'] = 640000
-  assert.equal(outstandingBefore(changed, '2026-11', today), 22000)
+  assert.equal(outstandingBefore(changed, '2026-11', today), 0)
+  assert.equal(outstandingBefore(changed, '2026-12', today), 22000)
   const run = options => simulate(changed, { start: '2026-11', duration: 3, amount: 40000, buffer: 20000, ...options }, today)
   assert.deepEqual(run(), {
-    month: '2026-11', remaining: 284000, arrears: 22000, status: 'fits', headroom: 264000, unconfirmedCount: 3,
+    month: '2026-11', remaining: 284000, arrears: 0, status: 'fits', headroom: 264000, unconfirmedCount: 3,
     before: { month: '2026-11', remaining: 324000, firstBelow: null, belowCount: 0 },
     after: { month: '2026-11', remaining: 284000, firstBelow: null, belowCount: 0 },
   })
@@ -160,8 +165,7 @@ test('allocates a deferred installment to its planned month and replaces it with
   assert.equal(target.movedIn[0].dueMonth, dueMonth)
   assert.equal(outstandingBefore(changed, plannedMonth, today), 0)
   assert.equal(simulate(changed, { start: plannedMonth, duration: 1, amount: 10000, buffer: 0 }, today).remaining, 505000)
-  assert.equal(outstandingBefore(changed, '2027-01', '2026-12-31'),
-    outstandingBefore(data, '2027-01', '2026-12-31') - 22000)
+  assert.equal(outstandingBefore(changed, '2027-01', '2026-12-31'), 0)
   assert.equal(outstandingBefore(changed, '2027-01', '2027-01-02'),
     outstandingBefore(data, '2027-01', '2027-01-02'))
 
@@ -178,9 +182,9 @@ test('charges an early payment to the earlier month and keeps its original insta
   changed.payments['plan:2026-12'] = { status: 'paid', amount: 31500, paymentMonth: '2026-11' }
   const early = monthSummary(changed, '2026-11', today)
   const due = monthSummary(changed, '2026-12', today)
-  assert.equal(early.committed, 344500)
+  assert.equal(early.committed, 366500)
   assert.equal(early.paidTotal, 274500)
-  assert.equal(early.balance, 314500)
+  assert.equal(early.balance, 292500)
   assert.equal(due.scheduledCommitment, 313000)
   assert.equal(due.committed, 281500)
   assert.equal(installment(changed, changed.commitments[4], '2026-12', today).status, 'paid')
@@ -231,14 +235,15 @@ test('allocates a partial payment and its carried balance without double countin
   assert.equal(dec.scheduledTotal, 347000)
   assert.equal(dec.missedTotal, 0)
   const overdue = monthSummary(changed, '2026-12', '2027-01-01')
-  assert.equal(overdue.missedTotal, 347000)
+  assert.equal(overdue.committed, 0)
   assert.equal(overdue.scheduledTotal, 0)
-  assert.equal(outstandingBefore(changed, '2027-01', '2027-01-01'), 347000)
+  assert.equal(monthSummary(changed, '2027-01', '2027-01-01').outstanding, 570000)
+  assert.equal(outstandingBefore(changed, '2027-01', '2027-01-01'), 0)
   const backup = JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: changed })
   assert.deepEqual(readBackup(backup), changed)
   changed.payments['test:2026-11'].partial.settled = true
   assert.equal(monthSummary(changed, '2026-12', '2026-12-21').paidTotal, 124000)
-  assert.equal(outstandingBefore(changed, '2027-01', '2027-01-01'), 223000)
+  assert.equal(monthSummary(changed, '2027-01', '2027-01-01').outstanding, 446000)
 })
 
 test('projects the full term with the same monthly balances used by the simulator', () => {

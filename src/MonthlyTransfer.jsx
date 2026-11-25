@@ -22,11 +22,9 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const commitments = commitmentChecklist(data, month, today)
-  const firstPayable = new Map()
+  const firstPending = new Map()
   for (const row of commitments) {
-    if (row.status !== 'paid' && row.dueMonth <= month && !firstPayable.has(row.item.id)) {
-      firstPayable.set(row.item.id, row.key)
-    }
+    if (row.status !== 'paid' && !firstPending.has(row.item.id)) firstPending.set(row.item.id, row.key)
   }
   const spending = spendingChecklist(data, month)
   const current = today.slice(0, 7)
@@ -94,7 +92,7 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
         {canRecordReceipt && !salaryReceived && <button type="submit" value="received" className="button primary" disabled={saving}>Salary received</button>}
       </form>
     </section>
-    <p className="transfer-instruction">Tick each item after completing it in your banking app. Payments for next month count toward that budget from the 21st, or from an earlier salary receipt. Spending transfers use the month shown.</p>
+    <p className="transfer-instruction">Record payments after completing them in your banking app. Overdue balances roll into the next budget from the 21st. Use Record amount to apply a payment to the oldest instalment first. Spending transfers use the month shown.</p>
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="transfer-checklists" aria-busy={saving}>
       <Checklist id="checklist-commitments" title="Commitment payments" icon={CreditCard} rows={commitments}
@@ -109,14 +107,15 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
                 : row.paidMonth && row.paidMonth !== month && ' · Paid in ' + monthLabel(row.paidMonth)}</small>
             {row.remaining > 0 && row.remaining < row.amount && <small>
               {money(row.amount - row.remaining)} paid · {money(row.remaining)} remaining</small>}
-            {firstPayable.get(row.item.id) === row.key && <button type="button" className="transfer-allocation-link" disabled={saving}
+            {firstPending.get(row.item.id) === row.key && row.dueMonth <= month && <button type="button" className="transfer-allocation-link" disabled={saving}
               aria-label={'Record amount for ' + row.item.name}
               onClick={() => open({ type: 'allocate-payment', item: row.item, month })}>Record amount</button>}
           </div>
           <strong className="transfer-row-amount">{money(row.remaining > 0 ? row.remaining : row.amount)}</strong>
           {row.status === 'paid' ? <span className="transfer-complete"><Check size={14} /> Paid</span>
             : <button type="button" className="button secondary" aria-label={'Mark ' + row.item.name + (row.portion === 'remainder' ? ' carried balance' : '') + ' paid'}
-              disabled={saving} onClick={() => update(() => markCommitmentPaid(data, row, month, todayMYT()))}>Mark paid</button>}
+              disabled={saving || firstPending.get(row.item.id) !== row.key}
+              onClick={() => update(() => markCommitmentPaid(data, row, month, todayMYT()))}>Mark paid</button>}
         </>}
       </Checklist>
       <Checklist id="checklist-spending" title="Spending transfers" icon={Wallet} rows={spending}

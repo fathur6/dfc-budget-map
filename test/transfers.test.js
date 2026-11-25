@@ -28,7 +28,8 @@ test('allocates RM2300 to the carried November balance and then December, with n
   const decemberChecklist = commitmentChecklist(updated, december, today)
   assert.equal(decemberChecklist.find(row => row.dueMonth === november).status, 'paid')
   assert.equal(decemberChecklist.find(row => row.dueMonth === december).remaining, 144000)
-  assert.equal(outstandingBefore(updated, '2027-01', '2026-12-25'), 144000)
+  assert.equal(outstandingBefore(updated, '2027-01', '2026-12-25'), 0)
+  assert.equal(outstandingBefore(updated, '2027-02', '2026-12-25'), 144000)
 
   const partialAgain = recordAllocatedPayment(updated, item, december, 44000, today, today)
   const closingRow = commitmentChecklist(partialAgain, december, today).find(row => row.dueMonth === december)
@@ -47,6 +48,59 @@ test('allocates a smaller payment entirely against the oldest outstanding instal
   assert.equal(row.remaining, 109000)
   assert.equal(row.status, 'scheduled')
   assert.equal(monthSummary(updated, december, today).paidTotal, 15000)
+})
+
+test('rolls insurance arrears into the next budget and allocates oldest first across cutoffs', () => {
+  const budget = emptyBudget()
+  const october = '2026-10'
+  const january = '2027-01'
+  const item = { id: 'insurance', name: 'Takaful', category: 'Insurance', start: october, end: '', day: 1, amount: 13850 }
+  budget.commitments = [item]
+  const checklist = (month, date) => commitmentChecklist(budget, month, date).map(row => row.dueMonth)
+  assert.deepEqual(checklist(november, '2026-11-20'), [october, november])
+  assert.deepEqual(checklist(december, '2026-11-20'), [december])
+  assert.deepEqual(checklist(december, '2026-11-21'), [october, november, december])
+  assert.equal(monthSummary(budget, october, today).scheduledCommitment, 13850)
+  assert.equal(monthSummary(budget, november, today).committed, 0)
+  assert.equal(monthSummary(budget, december, today).outstanding, 41550)
+  assert.equal(monthSummary(budget, january, today).outstanding, 13850)
+  assert.equal(outstandingBefore(budget, december, today), 0)
+
+  // Existing manual plans for the same month must not add a second copy of either balance.
+  budget.payments['insurance:2026-10'] = { paymentMonth: december }
+  budget.payments['insurance:2026-11'] = { paymentMonth: december }
+  const rows = allocationRows(budget, item, december, today)
+  assert.deepEqual(rows.map(row => row.dueMonth), [october, november, december])
+  assert.equal(monthSummary(budget, december, today).outstanding, 41550)
+  assert.throws(() => markCommitmentPaid(budget, rows[2], december, today), /oldest outstanding/)
+  const updated = recordAllocatedPayment(budget, item, december, 20000, today, today)
+  assert.equal(monthSummary(updated, december, today).outstanding, 21550)
+  assert.equal(monthSummary(updated, december, today).paidTotal, 20000)
+
+  const nextDate = '2026-12-21'
+  assert.equal(monthSummary(updated, december, nextDate).outstanding, 0)
+  assert.equal(monthSummary(updated, january, nextDate).outstanding, 35400)
+  assert.deepEqual(commitmentChecklist(updated, december, nextDate).map(row => [row.dueMonth, row.amount, row.status]), [
+    [october, 13850, 'paid'], [november, 6150, 'paid'],
+  ])
+  const again = recordAllocatedPayment(updated, item, january, 10000, nextDate, nextDate)
+  assert.equal(monthSummary(again, december, nextDate).paidTotal, 20000)
+  assert.equal(monthSummary(again, january, nextDate).outstanding, 25400)
+  assert.deepEqual(again.payments['insurance:2026-11'].partial.allocations.map(entry => [entry.amount, entry.checklistMonth]),
+    [[6150, december], [7700, january]])
+  assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: again })), again)
+})
+
+test('waits for a late due date and honours an explicit future payment plan', () => {
+  const budget = emptyBudget()
+  const january = '2027-01'
+  budget.commitments = [{ id: 'late', name: 'Late-month bill', category: 'Other', start: november, end: december, day: 28, amount: 20000 }]
+  budget.payments['late:2026-12'] = { paymentMonth: january }
+  assert.equal(commitmentChecklist(budget, december, '2026-11-28').length, 0)
+  assert.deepEqual(commitmentChecklist(budget, december, '2026-11-29').map(row => row.dueMonth), [november])
+  assert.deepEqual(commitmentChecklist(budget, january, '2026-11-29').map(row => row.dueMonth), [december])
+  assert.equal(monthSummary(budget, december, '2026-11-29').outstanding, 20000)
+  assert.equal(monthSummary(budget, january, '2026-11-29').outstanding, 20000)
 })
 
 function budgetWithTransfers() {
@@ -126,12 +180,16 @@ test('retains explicit legacy checklist intent without guessing a date for other
 
 test('keeps the outstanding amount separate when a carried balance lands in a different month', () => {
   const budget = budgetWithTransfers()
-  const row = commitmentChecklist(budget, december, today).find(entry => entry.portion === 'remainder')
-  const updated = markCommitmentPaid(budget, row, december, '2027-01-01')
-  assert.equal(updated.payments[row.key].partial.paidMonth, '2027-01')
+  const january = '2027-01'
+  const date = '2027-01-01'
+  const original = commitmentChecklist(budget, december, today).find(entry => entry.item.id === 'partial')
+  assert.throws(() => markCommitmentPaid(budget, original, december, date), /balance has changed/)
+  const row = commitmentChecklist(budget, january, date).find(entry => entry.item.id === 'partial')
+  const updated = markCommitmentPaid(budget, row, january, date)
+  assert.equal(updated.payments[row.key].partial.allocations[0].date, date)
   assert.equal(monthSummary(updated, november, today).paidTotal, 143500)
-  assert.equal(monthSummary(updated, '2027-01', '2027-01-01').paidTotal, 124000)
-  assert.equal(commitmentChecklist(updated, december, today).find(entry => entry.portion === 'remainder').paidMonth, '2027-01')
+  assert.equal(monthSummary(updated, january, date).paidTotal, 124000)
+  assert.equal(commitmentChecklist(updated, january, date).find(entry => entry.item.id === 'partial').paidMonth, january)
 })
 
 test('keeps spending transfer status scoped to the selected month without changing the amount', () => {

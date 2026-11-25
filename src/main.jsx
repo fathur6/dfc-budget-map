@@ -153,16 +153,16 @@ function CommitmentBreakdown({ month, summary, close }) {
         <div><dt>Originally due</dt><dd>{money(summary.scheduledCommitment)}</dd></div>
         {summary.movedIn.map(entry => <div key={'in:' + paymentKey(entry.id, entry.dueMonth) + ':' + (entry.allocationIndex ?? 'balance')}>
           <dt>{entry.name}<small>{entry.status === 'paid'
-            ? entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid' : 'Planned'} · Due {monthLabel(entry.dueMonth)}
-            {entry.partial && ' · Carried from a partial payment'}</small></dt>
+            ? entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid' : entry.autoCarried ? 'Carried forward' : 'Planned'} · Due {monthLabel(entry.dueMonth)}
+            {entry.partial?.paid > 0 && ' · Carried from a partial payment'}</small></dt>
           <dd className="transfer-in">+{money(entry.amount)}</dd>
         </div>)}
         {summary.movedOut.map(entry => <div key={'out:' + paymentKey(entry.id, entry.dueMonth) + ':' + (entry.allocationIndex ?? 'balance')}>
           <dt>{entry.name}<small>{entry.status === 'paid'
             ? (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paidMonth ?? entry.paymentMonth))
-            : 'Planned for ' + monthLabel(entry.paymentMonth)}
+            : (entry.autoCarried ? 'Carried to ' : 'Planned for ') + monthLabel(entry.paymentMonth)}
             {entry.paidMonth && entry.paidMonth !== entry.paymentMonth && ' · ' + monthLabel(entry.paymentMonth) + ' budget'}
-            {entry.partial && ' · Carried from a partial payment'}</small></dt>
+            {entry.partial?.paid > 0 && ' · Carried from a partial payment'}</small></dt>
           <dd className="transfer-out">{money(-entry.amount)}</dd>
         </div>)}
         <div><dt>Total for this month</dt><dd>{money(summary.committed)}</dd></div>
@@ -256,7 +256,7 @@ function useRowReorder(data, collection, rows, save) {
 
 function CommitmentMap({ data, months, month, current, today, summaries, chooseMonth, open, save }) {
   const carriedByMonth = new Map(months.map((value, index) => [
-    value, summaries[index].movedIn.filter(entry => entry.partial),
+    value, summaries[index].movedIn.filter(entry => entry.dueMonth < value || entry.partial),
   ]))
   const rows = data.commitments.filter(item => months.some(value =>
     active(item, value) || data.payments[paymentKey(item.id, value)]?.oneOff
@@ -289,9 +289,11 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const entry = installment(data, item, value, today)
             const carried = carriedByMonth.get(value).filter(payment => payment.id === item.id)
             const carriedTotal = carried.reduce((sum, payment) => sum + payment.amount, 0)
-            const assigned = entry?.budgetMonth ?? entry?.paymentMonth ?? value
-            const ownParts = entry ? installmentParts(data, entry, value)
-              .filter(part => (part.budgetMonth ?? part.paymentMonth ?? value) === value) : []
+            const parts = entry ? installmentParts(data, entry, value, today) : []
+            const partsInCell = part => (part.budgetMonth ?? part.paymentMonth ?? value) === value
+            const ownParts = parts.filter(partsInCell)
+            const movedBalance = parts.find(part => part.status !== 'paid' && !partsInCell(part))
+            const assigned = movedBalance?.paymentMonth ?? value
             const ownAmount = ownParts.reduce((sum, part) => sum + part.amount, 0)
             const shownAmount = carriedTotal ? ownAmount + carriedTotal : entry?.amount
             const remaining = entry?.partial ? remainingInstallment(entry) : null
@@ -303,27 +305,30 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
               : entry?.partial ? (remaining === 0 ? 'paid' : 'scheduled') : entry?.status
             const StatusIcon = carriedTotal ? statuses[tone].icon : status?.icon
             const carryNote = carriedTotal ? money(carriedTotal) + ' carried in' : ''
-            const pooled = entry?.partial?.allocations || carried.some(payment => payment.partial?.allocations)
-            const cellRemaining = pooled && carriedTotal
+            const pooled = carriedTotal > 0 || entry?.partial?.allocations
+            const cellRemaining = carriedTotal
               ? [...carried, ...ownParts].filter(part => part.status !== 'paid').reduce((sum, part) => sum + part.amount, 0)
               : remaining
+            const paidAmount = shownAmount - cellRemaining
+            const remainingNote = movedBalance && !carriedTotal ? ' carried to ' + monthLabel(assigned) : ' remaining'
             const movement = pooled
-              ? money((carriedTotal ? shownAmount : entry.amount) - cellRemaining) + ' paid'
-                + (cellRemaining ? ' · ' + money(cellRemaining) + ' remaining' : ' · Settled')
+              ? (paidAmount > 0 ? money(paidAmount) + ' paid · ' : '')
+                + (cellRemaining ? money(cellRemaining) + remainingNote : 'Settled')
               : entry?.partial
               ? money(entry.partial.paid) + ' paid · ' + money(entry.amount - entry.partial.paid)
                 + (entry.partial.settled ? (entry.partial.paidDate ? ' paid on ' + dateLabel(entry.partial.paidDate)
-                  : ' paid in ' + monthLabel(entry.partial.paidMonth ?? entry.partial.month)) : ' carried to ' + monthLabel(entry.partial.month))
+                  : ' paid in ' + monthLabel(entry.partial.paidMonth ?? entry.partial.month)) : ' carried to ' + monthLabel(assigned))
               : entry?.status === 'paid' && (entry.paidDate || entry.paymentMonth !== undefined)
                 ? (entry.budgetMonth ? 'On time · ' : '') + (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paymentMonth))
-                : assigned !== value ? 'Planned for ' + monthLabel(assigned) : ''
+                : movedBalance ? (movedBalance.autoCarried ? 'Carried to ' : 'Planned for ') + monthLabel(assigned) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
               {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
-                aria-label={[item.name, monthLabel(value, 'long'), money(shownAmount), carryNote, status?.label, movement].filter(Boolean).join(', ')}
-                onClick={() => open({ type: 'payment', item, month: entry ? value : carried[0].dueMonth, allocationMonth: value })}>
+                aria-label={[item.name, monthLabel(value, 'long'), money(shownAmount), carryNote, carriedTotal ? statuses[tone].label : status?.label, movement].filter(Boolean).join(', ')}
+                onClick={() => open({ type: 'payment', item, month: entry ? value : carried[0].dueMonth, allocationMonth: carriedTotal ? value : assigned })}>
                 <span className="payment-amount"><StatusIcon size={14} strokeWidth={2.3} />{money(shownAmount)}</span>
                 {carryNote && <small>{carryNote}</small>}
                 {movement && <small>{movement}</small>}
+                {carriedTotal > 0 && movedBalance && <small>{money(movedBalance.amount)} carried to {monthLabel(assigned)}</small>}
               </button> : value >= '2000-01' && value <= '2100-12'
                 ? <button type="button" className="inactive-tile"
                   aria-label={'Add payment for ' + item.name + ', ' + monthLabel(value, 'long')}
@@ -621,7 +626,7 @@ function App() {
     {editor?.type === 'help' && <Modal title="How it works" close={() => setEditor(null)}>
       <div className="editor help-copy">
         <p>Open an income cell to enter base income and additional sources for that month. Record loan proceeds there and add repayments in the Commitment Map. Set the same first and last month for a one-off bill.</p>
-        <p>Each commitment cell stays in its original due month. Record the actual payment date and use View transfers in Monthly Summary to see month allocations.</p>
+        <p>Commitment cells keep their original due dates. From the 21st (Malaysia time), overdue balances roll into the next budget month. Use Record amount to pay the oldest instalment first and View transfers to see how amounts moved.</p>
         <p>Record Salary received in Monthly Transfer for the intended budget month. Payments for next month count toward that budget from the 21st, or from an earlier recorded salary receipt. Spending transfers use the selected month.</p>
         <p>Unpaid cells with verified schedules turn red after their due date in Malaysia time. Due days after the last day of a month are treated as month-end.</p>
         <p>The Overview and Monthly Summary balances use income plus loan proceeds, minus commitments and recorded spending. The simulator also uses recorded spending. Empty spending cells count as zero.</p>

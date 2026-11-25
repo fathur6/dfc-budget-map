@@ -1,40 +1,36 @@
-import { categoryMonth, installment, paymentBudgetMonth, paymentKey, remainingInstallment, validDate } from './budget.js'
+import { categoryMonth, commitmentMonths, installment, outstandingBudgetMonth, paymentBudgetMonth, paymentKey, remainingInstallment, validDate } from './budget.js'
 
 export function commitmentChecklist(data, month, today) {
-  const dueMonths = new Map(data.commitments.map(item => [item.id, new Set([month])]))
-  for (const [key, payment] of Object.entries(data.payments)) {
-    if (payment.paymentMonth === month || payment.checklistMonth === month || payment.partial?.month === month) {
-      const [id, dueMonth] = key.split(':')
-      dueMonths.get(id)?.add(dueMonth)
-    }
-  }
-
   const rows = []
-  for (const item of data.commitments) {
-    for (const dueMonth of dueMonths.get(item.id)) {
+  for (const { item, months } of commitmentMonths(data, month, today)) {
+    for (const dueMonth of months) {
       const entry = installment(data, item, dueMonth, today)
       if (!entry) continue
       const key = paymentKey(item.id, dueMonth)
       const row = { key, item, dueMonth, due: entry.due }
+      const target = outstandingBudgetMonth(entry, dueMonth, today)
       if (entry.partial) {
-        const remaining = remainingInstallment(entry)
-        if (dueMonth === month && entry.partial.month !== month && entry.partial.paid > 0) {
-          rows.push({ ...row, portion: 'partial', status: 'paid', amount: entry.partial.paid, paidMonth: dueMonth })
-        }
-        if (entry.partial.month === month) {
-          const carried = dueMonth !== month
-          const lastAllocation = entry.partial.allocations?.at(-1)
-          rows.push({ ...row, ...(carried && { portion: 'remainder' }),
-            amount: entry.amount - (carried ? entry.partial.paid : 0), remaining,
-            status: remaining === 0 ? 'paid' : 'scheduled',
-            paidMonth: remaining === 0 ? lastAllocation?.date.slice(0, 7) ?? entry.partial.paidMonth ?? month : null,
-            paidDate: lastAllocation?.date ?? entry.partial.paidDate })
+        const { paid, settled, month: originalPlan, paidDate, paidMonth, allocations = [] } = entry.partial
+        const included = allocations.filter(allocation => (allocation.checklistMonth ?? originalPlan) === month)
+        const lastAllocation = included.at(-1)
+        const settledHere = settled && originalPlan === month
+        const remaining = target === month ? remainingInstallment(entry) : 0
+        const amount = remaining + (dueMonth === month ? paid : 0) + (settledHere ? entry.amount - paid : 0)
+          + included.reduce((total, allocation) => total + allocation.amount, 0)
+        if (amount > 0) {
+          const date = lastAllocation?.date ?? (settledHere ? paidDate : undefined)
+          rows.push({ ...row, portion: dueMonth !== month ? 'remainder' : remaining === 0 && !lastAllocation ? 'partial' : undefined,
+            amount, remaining, status: remaining === 0 ? 'paid' : 'scheduled',
+            paidMonth: remaining === 0 ? date?.slice(0, 7) ?? (settledHere ? paidMonth : null) ?? month : null,
+            paidDate: date })
         }
       } else {
         const actual = entry.paymentMonth ?? dueMonth
-        const planned = data.payments[key]?.checklistMonth ?? (entry.status === 'paid' && actual < dueMonth ? dueMonth : actual)
+        const paid = entry.status === 'paid'
+        const planned = paid ? data.payments[key]?.checklistMonth ?? (actual < dueMonth ? dueMonth : actual) : target
         if (planned === month && entry.amount > 0) {
-          rows.push({ ...row, status: entry.status, amount: entry.amount, paidMonth: entry.status === 'paid' ? actual : null,
+          rows.push({ ...row, ...(dueMonth < month && { portion: 'remainder' }),
+            status: !paid && dueMonth < month ? 'scheduled' : entry.status, amount: entry.amount, paidMonth: paid ? actual : null,
             paidDate: entry.paidDate })
         }
       }
@@ -43,14 +39,21 @@ export function commitmentChecklist(data, month, today) {
   return rows
 }
 
-export function markCommitmentPaid(data, row, month, today) {
+export function markCommitmentPaid(data, requested, month, today) {
+  const pending = commitmentChecklist(data, month, today)
+    .filter(entry => entry.item.id === requested.item.id && entry.status !== 'paid')
+  const row = pending.find(entry => entry.key === requested.key)
+  if (!row || (row.remaining ?? row.amount) !== (requested.remaining ?? requested.amount)) {
+    throw new Error('The outstanding balance has changed. Refresh the checklist before recording the payment.')
+  }
+  if (pending[0].key !== row.key) throw new Error('Record the oldest outstanding instalment first.')
   const paidMonth = today.slice(0, 7)
   const previous = data.payments[row.key]
-  if (previous?.partial?.allocations) {
+  if (previous?.partial && (previous.partial.allocations || previous.partial.month !== month)) {
     return applySlices(data, [{ row, amount: row.remaining }], month, today)
   }
   let payment
-  if (row.portion === 'remainder') {
+  if (previous?.partial) {
     if (paidMonth < row.dueMonth) throw new Error('Check the date of the original partial payment before settling the remainder.')
     payment = { ...previous, partial: { ...previous.partial, settled: true, paidMonth, paidDate: today } }
   } else {
@@ -90,8 +93,8 @@ function applySlices(data, slices, month, date) {
       ...(previous?.oneOff && { oneOff: true }),
       partial: {
         paid: previous?.partial?.paid ?? 0,
-        month, settled: false,
-        allocations: [...(previous?.partial?.allocations ?? []), { amount, date, month: budgetMonth }],
+        month: previous?.partial?.month ?? month, settled: false,
+        allocations: [...(previous?.partial?.allocations ?? []), { amount, date, month: budgetMonth, checklistMonth: month }],
       },
     }
   }

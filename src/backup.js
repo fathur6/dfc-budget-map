@@ -35,6 +35,7 @@ function validAllocations(partial, total) {
   return !partial.settled && Array.isArray(partial.allocations) && partial.allocations.length > 0
     && partial.allocations.every(entry => record(entry) && validAmount(entry.amount) && entry.amount > 0
       && validDate(entry.date) && validMonth(entry.month)
+      && (entry.checklistMonth === undefined || validMonth(entry.checklistMonth))
       && [entry.date.slice(0, 7), addMonths(entry.date.slice(0, 7), 1)].includes(entry.month))
     && partial.allocations.reduce((sum, entry) => sum + entry.amount, partial.paid) <= total
 }
