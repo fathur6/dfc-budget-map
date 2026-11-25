@@ -1,8 +1,50 @@
 import { useRef, useState } from 'react'
 import { AlertTriangle, ArrowDown, ArrowDownLeft, ArrowLeftRight, Check, CreditCard, Wallet } from 'lucide-react'
-import { addMonths, dateLabel, money, monthLabel, parseMoney, todayMYT } from './budget.js'
+import { addMonths, appendIncomeSource, dateLabel, money, monthLabel, parseMoney, todayMYT } from './budget.js'
 import { MoneyField } from './editors.jsx'
 import { checklistProgress, commitmentChecklist, isOutstandingArrears, markCommitmentPaid, spendingChecklist } from './transfers.js'
+
+const transferIncomeTypes = ['Loan proceeds', 'Incentive', 'Gift', 'Freelance']
+
+function AdditionalIncome({ data, month, saving, update, open }) {
+  const [error, setError] = useState('')
+  const entries = data.incomeSourcesByMonth?.[month] ?? []
+
+  async function addSource(event) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const fields = new FormData(form)
+    const type = fields.get('source')
+    const amount = parseMoney(fields.get('source-amount'))
+    if (await update(() => appendIncomeSource(data, month, type, amount), setError)) form.reset()
+  }
+
+  return <section className="transfer-extra-income" aria-labelledby="transfer-extra-income-title">
+    <div className="transfer-extra-heading">
+      <h3 id="transfer-extra-income-title">Additional income</h3>
+      {entries.length > 0 && <button type="button" className="link-button" disabled={saving}
+        onClick={() => open({ type: 'income', month })}>Edit sources</button>}
+    </div>
+    <form onSubmit={addSource}>
+      <fieldset className="transfer-source-fields" aria-labelledby="transfer-extra-income-title" disabled={saving}>
+        <label className="field"><span>Source</span>
+          <select name="source" defaultValue="" required>
+            <option value="" disabled>Choose source</option>
+            {transferIncomeTypes.map(type => <option key={type} value={type}>{type === 'Loan proceeds' ? 'Loan' : type}</option>)}
+          </select>
+        </label>
+        <MoneyField label="Amount" name="source-amount" />
+        <button type="submit" className="button secondary">Add income</button>
+      </fieldset>
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </form>
+    {entries.length > 0 && <ul className="transfer-source-list" aria-label="Saved income sources">
+      {entries.map(({ type, name, amount }, index) => <li key={index}>
+        <span>{type}{name && <small>{name}</small>}</span><strong>{money(amount)}</strong>
+      </li>)}
+    </ul>}
+  </section>
+}
 
 function TransferProgress({ title, icon: Icon, progress, done, pending, pendingTone, onArrears }) {
   const { total, completedAmount, remaining, arrears } = progress
@@ -65,14 +107,16 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
   const salaryReceived = data.salaryReceipts?.[month]
   const canRecordReceipt = month === current || month === addMonths(current, 1)
 
-  async function update(change) {
-    if (saving) return
+  async function update(change, reportError = setError) {
+    if (saving) return false
     setSaving(true)
-    setError('')
+    reportError('')
     try {
       await save(change())
+      return true
     } catch (failure) {
-      setError(failure.message || 'Could not save the checklist.')
+      reportError(failure.message || 'Could not save the budget.')
+      return false
     } finally {
       setSaving(false)
     }
@@ -120,15 +164,19 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
         <div><div className="section-title"><ArrowDownLeft size={19} /><h2 id="transfer-income-title">Cash inflow</h2></div>
           <p>{salaryReceived ? `Salary received on ${dateLabel(salaryReceived)} · ${monthLabel(month, 'long')} budget`
             : `Save the take-home salary for ${monthLabel(month, 'long')}.`}</p></div>
-        <div className="transfer-inflow-value"><strong>{money(summary.cashInflow)}</strong>
-          {additional > 0 && <small>Includes {money(additional)} in other inflows</small>}</div>
+        <div className="transfer-inflow-value" aria-live="polite"><strong>{money(summary.cashInflow ?? (additional || null))}</strong>
+          {additional > 0 && <small>{summary.cashInflow == null ? 'Recorded inflows · salary unknown'
+            : `Includes ${money(additional)} in other inflows`}</small>}</div>
       </div>
       <div className="transfer-income-body">
-        <form className="transfer-income-form" onSubmit={saveIncome}>
-          <MoneyField key={baseIncome} name="income" label="Take-home salary" value={baseIncome} placeholder="Enter monthly salary" />
-          <button type="submit" className={canRecordReceipt && !salaryReceived ? 'button secondary' : 'button primary'} disabled={saving}>Save income</button>
-          {canRecordReceipt && !salaryReceived && <button type="submit" value="received" className="button primary" disabled={saving}>Salary received</button>}
-        </form>
+        <div className="transfer-income-inputs">
+          <form className="transfer-income-form" onSubmit={saveIncome}>
+            <MoneyField key={baseIncome} name="income" label="Take-home salary" value={baseIncome} placeholder="Enter monthly salary" />
+            <button type="submit" className={canRecordReceipt && !salaryReceived ? 'button secondary' : 'button primary'} disabled={saving}>Save income</button>
+            {canRecordReceipt && !salaryReceived && <button type="submit" value="received" className="button primary" disabled={saving}>Salary received</button>}
+          </form>
+          <AdditionalIncome data={data} month={month} saving={saving} update={update} open={open} />
+        </div>
         <div className="transfer-progress-grid">
           <TransferProgress title="Commitment payments" icon={CreditCard} progress={commitmentProgress}
             done="Paid" pending="Unpaid" pendingTone="progress-unpaid" onArrears={showArrears} />

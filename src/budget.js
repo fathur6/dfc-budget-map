@@ -76,7 +76,19 @@ export function emptyBudget() {
 
 export const spendingCategories = ['Food & household', 'Family support', 'Transport', 'Childcare', 'Insurance', 'Education', 'Subscriptions', 'Other']
 
-export const incomeSourceTypes = ['Gift', 'Project', 'Loan proceeds', 'Other']
+export const incomeSourceTypes = ['Gift', 'Project', 'Loan proceeds', 'Incentive', 'Freelance', 'Other']
+
+export function appendIncomeSource(data, month, type, amount) {
+  if (!validMonth(month) || !incomeSourceTypes.includes(type)) throw new Error('Choose an income source for this month.')
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 999999999) {
+    throw new Error('Enter an amount greater than RM 0.00 with up to two decimal places.')
+  }
+  const sources = data.incomeSourcesByMonth?.[month] ?? []
+  return {
+    ...data,
+    incomeSourcesByMonth: { ...data.incomeSourcesByMonth, [month]: [...sources, { type, name: '', amount }] },
+  }
+}
 
 export function active(item, month) {
   return month >= item.start && (!item.end || month <= item.end)

@@ -105,9 +105,21 @@ h2 { font-size: 19px; font-weight: 670; }
 .transfer-inflow-value strong { color: var(--green); font-size: 20px; }
 .transfer-inflow-value small { color: var(--muted); font: 11px 'Geist Variable', sans-serif; }
 .transfer-income-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr); align-items: start; gap: 16px; padding: 0 18px 17px; }
+.transfer-income-inputs { min-width: 0; display: grid; gap: 15px; }
 .transfer-income-form { display: flex; align-items: end; gap: 9px; }
 .transfer-income-form .field { flex: 1 1 180px; max-width: 265px; }
-.transfer-income-form .button { min-height: 38px; }
+.transfer-income-form .button, .transfer-source-fields .button { min-height: 38px; }
+.transfer-extra-income { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.transfer-extra-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.transfer-extra-heading h3 { margin: 0; font-size: 13px; font-weight: 650; }
+.transfer-extra-heading .link-button { color: var(--blue); font-size: 11px; }
+.transfer-source-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.transfer-source-fields .field { flex: 1 1 99px; }
+.transfer-extra-income .form-error { margin-top: 8px; }
+.transfer-source-list { list-style: none; padding: 0; margin: 0; }
+.transfer-source-list li { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; padding: 6px 1px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.transfer-source-list small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.transfer-source-list strong { flex: none; font: 600 11px var(--mono); }
 .transfer-progress-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .transfer-progress-card { min-width: 0; display: grid; align-content: start; gap: 11px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); }
 .transfer-progress-head { display: flex; justify-content: space-between; align-items: center; gap: 7px; }

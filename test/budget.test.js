@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  addMonths, demoBudget, dueDate, emptyBudget, installment, monthSummary, nextMonthChange,
+  addMonths, appendIncomeSource, demoBudget, dueDate, emptyBudget, installment, monthSummary, nextMonthChange,
   outstandingBefore, parseMoney, projectClosingCash, projectCommitment, simulate, spendingReviewKey, todayMYT,
 } from '../src/budget.js'
 import { readBackup } from '../src/backup.js'
@@ -111,6 +111,22 @@ test('adds extra income and loan proceeds to cash flow for the selected month on
   assert.equal(monthSummary(changed, '2026-11', today).cashInflow, 645000)
   changed.incomeByMonth['2026-11'] = null
   assert.equal(monthSummary(changed, '2026-11', today).balance, null)
+})
+
+test('appends additional income sources for one month and retains the existing loan treatment', () => {
+  const december = '2026-12'
+  const base = { ...data, incomeSourcesByMonth: { [december]: [{ type: 'Project', name: 'Workshop', amount: 4000 }] } }
+  const additions = [['Loan proceeds', 20000], ['Incentive', 10000], ['Gift', 5000], ['Freelance', 15000], ['Gift', 2500]]
+  const updated = additions.reduce((budget, [type, amount]) => appendIncomeSource(budget, december, type, amount), base)
+  const { cashInflow, income, loanProceeds } = monthSummary(updated, december, today)
+  assert.equal(cashInflow, 906500)
+  assert.equal(income, 886500)
+  assert.equal(loanProceeds, 20000)
+  assert.equal(monthSummary(updated, '2026-11', today).cashInflow, 850000)
+  assert.equal(base.incomeSourcesByMonth[december].length, 1)
+  assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: updated })), updated)
+  assert.throws(() => appendIncomeSource(base, december, 'Invalid', 100), /Choose an income source/)
+  assert.throws(() => appendIncomeSource(base, december, 'Gift', 0), /greater than RM 0.00/)
 })
 
 test('includes a one-off instalment outside the schedule and carries it once if overdue', () => {
