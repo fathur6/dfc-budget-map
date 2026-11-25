@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowRight, Check, Clock3, Plus, X } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, Clock3, Plus, ReceiptText, X } from 'lucide-react'
 import { active, addMonths, categoryMonth, commitmentCategories, dateLabel, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, remainingInstallment, spendingCategories, validDate, validMonth } from './budget.js'
 import { readBackup } from './backup.js'
 import { allocationRows } from './transfers.js'
-import { convertSpendingToCommitment, spendingConversionPlan } from './spendingConversion.js'
+import { convertSpendingToCommitment, isSpendingHistory, spendingConversionPlan } from './spendingConversion.js'
 
 export const statuses = {
   paid: { label: 'Paid', icon: Check },
   scheduled: { label: 'Scheduled', icon: Clock3 },
   missed: { label: 'Missed', icon: AlertTriangle },
+  recorded: { label: 'Recorded spending', icon: ReceiptText },
 }
 
 export function Modal({ title, children, close, busy = false }) {
@@ -35,10 +36,10 @@ export function MoneyField({ label, name, value, required = true, placeholder = 
 }
 
 const monthPattern = '(20[0-9]{2}|2100)-(0[1-9]|1[0-2])'
-export function MonthField({ label, name, value, required = true, min = '2000-01', max = '2100-12', onChange }) {
+export function MonthField({ label, name, value, required = true, min = '2000-01', max = '2100-12', onInput }) {
   return <label className="field"><span>{label}</span>
     <input type="month" name={name} defaultValue={value} min={min} max={max} pattern={monthPattern}
-      placeholder="YYYY-MM" required={required} onChange={onChange} />
+      placeholder="YYYY-MM" required={required} onInput={onInput} />
   </label>
 }
 
@@ -78,7 +79,15 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const data = snapshot.budget
   const converting = type === 'convert-spending'
   const conversion = item && (type === 'category' || converting) ? spendingConversionPlan(data, item, today) : null
-  const [transferStart, setTransferStart] = useState(conversion?.start ?? '')
+  const [transferMode, setTransferMode] = useState(conversion?.currentAvailable ? 'current' : 'first')
+  const [customMonth, setCustomMonth] = useState(conversion?.currentAvailable ? conversion.current : conversion?.first)
+  const [transferDay, setTransferDay] = useState('')
+  const transferStart = transferMode === 'custom' ? customMonth : conversion?.[transferMode]
+  const transferInRange = converting && validMonth(transferStart) && transferStart >= item.start && transferStart <= conversion.latest
+  const historyMoves = transferInRange && conversion.entries.some(entry => entry.spent != null
+    && entry.month >= transferStart && entry.month <= conversion.latest
+    && isSpendingHistory(conversion, entry, today, conversion.linked?.day ?? Number(transferDay)))
+  const spendingStays = transferInRange && conversion.entries.some(entry => entry.spent != null && entry.month < transferStart)
   const [commitmentCategory, setCommitmentCategory] = useState(() =>
     commitmentCategories.includes(item?.category) ? item.category : 'Other')
   const [frequency, setFrequency] = useState(item?.frequency ?? 'monthly')
@@ -156,6 +165,19 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     </Modal>
   }
 
+  if (entry?.status === 'recorded') {
+    return <Modal title={item.name} close={close}>
+      <div className="editor">
+        <p className="form-note">{monthLabel(month, 'long')} · <strong>{money(entry.amount)}</strong></p>
+        <p className="muted form-note">Moved from Monthly Spending.{entry.spendingTransferred && ' Spending transfer recorded.'}</p>
+        {recordAmountOption}
+        <footer className="modal-actions"><div className="spacer" />
+          <button type="button" className="button secondary" onClick={close}>Done</button>
+        </footer>
+      </div>
+    </Modal>
+  }
+
   async function submit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -166,8 +188,9 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     try {
       if (converting) {
         await save(convertSpendingToCommitment(data, {
-          itemId: item.id, start: readMonth(get('start')), amount: readAmount(get('amount'), { positive: true }),
-          day: Number(get('day')), category: get('category'), frequency: billingFrequency,
+          itemId: item.id, start: readMonth(transferMode === 'custom' ? get('start') : transferStart),
+          ...(!conversion.linked && { amount: readAmount(get('amount'), { positive: true }),
+            day: Number(get('day')), category: get('category'), frequency: billingFrequency }),
         }, today))
         return
       }
@@ -206,8 +229,8 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           const start = readMonth(get('start'))
           const end = readMonth(get('end'), true)
           if (end && end < start) throw new Error('The end month must be on or after the start month.')
-          if (type === 'category' && conversion?.linked && (!end || end >= conversion.linked.start)) {
-            throw new Error('End this spending item before its linked commitment starts in ' + monthLabel(conversion.linked.start, 'long') + '.')
+          if (type === 'category' && conversion?.linked && (!end || end >= conversion.linkedFrom)) {
+            throw new Error('End this spending item before ' + monthLabel(conversion.linkedFrom, 'long') + ', when the linked commitment takes over.')
           }
           if (type === 'commitment' && linkedSpending && (!linkedSpending.end || start <= linkedSpending.end)) {
             throw new Error('Start this commitment after the linked spending item ends.')
@@ -222,7 +245,8 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           const record = type === 'commitment'
             ? { ...common, category: get('category'), provisional: form.has('provisional'), amount: readAmount(get('amount'), { positive: true }), day: Number(get('day')),
               ...(yearly && { frequency: billingFrequency }),
-              ...(item?.spendingSourceId && { spendingSourceId: item.spendingSourceId }) }
+              ...(item?.spendingSourceId && { spendingSourceId: item.spendingSourceId, spendingSourceFrom: item.spendingSourceFrom ?? item.start }),
+              ...(item?.scheduleFrom && { scheduleFrom: item.scheduleFrom }) }
             : { ...common, ...(get('spendingCategory') && { category: get('spendingCategory') }) }
           if (type === 'category' && item) {
             for (const [key, entry] of Object.entries(next.spending)) {
@@ -364,28 +388,38 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           : item && <p className="muted form-note">To record a monthly amount, open its cell.</p>}
         {type === 'category' && item && <details className="spending-advanced">
           <summary>Advanced</summary>
-          {conversion.linked ? <p className="muted form-note">Linked to {conversion.linked.name} in Commitment Map from {monthLabel(conversion.linked.start, 'long')}.</p>
-            : conversion.available ? <button type="button" className="button secondary" disabled={busy}
+          {conversion.linked && <p className="muted form-note">Linked to {conversion.linked.name} in Commitment Map.</p>}
+          {conversion.available && <button type="button" className="button secondary" disabled={busy}
               onClick={() => open({ type: 'convert-spending', item })}>Transfer as commitment <ArrowRight size={15} aria-hidden="true" /></button>
-              : <p className="muted form-note">There are no future months available after existing transfers and confirmed spending.</p>}
+          }
         </details>}
       </>}
       {converting && <>
-        <p className="form-note">Move <strong>{item.name}</strong> to Commitment Map for future months.</p>
+        <p className="form-note">Move <strong>{item.name}</strong> to Commitment Map.</p>
         <div className="form-grid">
-          <MonthField label={yearly ? 'First renewal month' : 'Start month'} name="start" value={transferStart} min={conversion.start} max={item.end || '2100-12'}
-            onChange={event => setTransferStart(event.currentTarget.value)} />
+          <label className="field"><span>Transfer from</span>
+            <select value={transferMode} onChange={event => setTransferMode(event.currentTarget.value)}>
+              <option value="first">From first recorded month · {monthLabel(conversion.first)}</option>
+              <option value="current" disabled={!conversion.currentAvailable}>From current month · {monthLabel(conversion.current)}</option>
+              <option value="custom">Custom month</option>
+            </select>
+          </label>
+          {transferMode === 'custom' && <MonthField label="Start month" name="start" value={customMonth}
+            min={item.start} max={conversion.latest} onInput={event => setCustomMonth(event.currentTarget.value)} />}
+        </div>
+        {!conversion.linked && <div className="form-grid">
           <MoneyField key={billingFrequency} label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={yearly ? null : conversion.amount} />
           <label className="field"><span>{yearly ? 'Due day in renewal month' : 'Due day each month'}</span>
-            <input type="number" name="day" min="1" max="31" step="1" required /></label>
+            <input type="number" name="day" min="1" max="31" step="1" required
+              value={transferDay} onChange={event => setTransferDay(event.currentTarget.value)} /></label>
           {commitmentCategoryField}
           {frequencyField}
-        </div>
-        {validMonth(transferStart) && transferStart >= conversion.start && active(item, transferStart) && <div className="spending-conversion-preview">
-          {transferStart > item.start && <p><strong>Monthly Spending</strong> keeps its history through {monthLabel(addMonths(transferStart, -1), 'long')}.</p>}
-          <p><strong>Commitment Map</strong> starts in {monthLabel(transferStart, 'long')}{item.end ? ' and ends in ' + monthLabel(item.end, 'long') : ''}.</p>
-          <p>{yearly ? `The full yearly amount is due each ${monthLabel(transferStart, 'long', false)}. It replaces future unconfirmed spending amounts.`
-            : 'Saved amounts from the start month move as scheduled amounts. Months without an entry use the monthly amount.'}</p>
+        </div>}
+        {transferInRange && <div className="spending-conversion-preview">
+          <p><strong>Monthly Spending</strong> {spendingStays ? `keeps entries before ${monthLabel(transferStart, 'long')}.` : 'removes this item.'}</p>
+          <p><strong>Commitment Map</strong> {conversion.linked ? 'adds entries to the existing commitment from' : 'takes over from'} {monthLabel(transferStart, 'long')}.</p>
+          {historyMoves && <p>Past, transferred and confirmed amounts keep their original month as recorded spending.</p>}
+          {!conversion.linked && yearly && <p>The full yearly charge is due each {monthLabel(transferStart, 'long', false)}. It replaces unconfirmed future spending estimates.</p>}
         </div>}
       </>}
       {type === 'payment' && <>
@@ -473,7 +507,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}
         <div className="spacer" />
         <button type="button" className="button secondary" disabled={busy} onClick={close}>Cancel</button>
-        <button type="submit" className="button primary" disabled={busy} data-initial-focus={copying && editor.month ? "" : undefined}>{busy ? 'Saving…' : copying ? 'Copy value' : converting ? 'Transfer as commitment' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
+        <button type="submit" className="button primary" disabled={busy || (converting && !transferInRange)} data-initial-focus={copying && editor.month ? "" : undefined}>{busy ? 'Saving…' : copying ? 'Copy value' : converting ? 'Transfer as commitment' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
       </footer>
     </form>
   </Modal>

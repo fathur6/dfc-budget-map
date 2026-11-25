@@ -151,6 +151,7 @@ function CommitmentBreakdown({ month, summary, close }) {
     <div className="editor">
       <dl className="transfer-breakdown">
         <div><dt>Originally due</dt><dd>{money(summary.scheduledCommitment)}</dd></div>
+        {summary.recordedTotal > 0 && <div><dt>Recorded spending</dt><dd>{money(summary.recordedTotal)}</dd></div>}
         {summary.movedIn.map(entry => <div key={'in:' + paymentKey(entry.id, entry.dueMonth) + ':' + (entry.allocationIndex ?? 'balance')}>
           <dt>{entry.name}<small>{entry.status === 'paid'
             ? entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid' : entry.autoCarried ? 'Carried forward' : 'Planned'} · Due {monthLabel(entry.dueMonth)}
@@ -307,13 +308,15 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const StatusIcon = carriedTotal ? statuses[tone].icon : status?.icon
             const carryNote = carriedTotal ? money(carriedTotal) + ' carried in' : ''
             const pooled = carriedTotal > 0 || entry?.partial?.allocations
+            const recordedAmount = entry?.status === 'recorded' ? entry.amount : 0
             const cellRemaining = carriedTotal
-              ? [...carried, ...ownParts].filter(part => part.status !== 'paid').reduce((sum, part) => sum + part.amount, 0)
+              ? [...carried, ...ownParts].filter(part => part.status !== 'paid' && part.status !== 'recorded').reduce((sum, part) => sum + part.amount, 0)
               : remaining
-            const paidAmount = shownAmount - cellRemaining
+            const paidAmount = shownAmount - cellRemaining - recordedAmount
             const remainingNote = movedBalance && !carriedTotal ? ' carried to ' + monthLabel(assigned) : ' remaining'
             const movement = pooled
               ? (paidAmount > 0 ? money(paidAmount) + ' paid · ' : '')
+                + (recordedAmount > 0 ? money(recordedAmount) + ' recorded · ' : '')
                 + (cellRemaining ? money(cellRemaining) + remainingNote : 'Settled')
               : entry?.partial
               ? money(entry.partial.paid) + ' paid · ' + money(entry.amount - entry.partial.paid)
@@ -323,6 +326,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
                 ? (entry.budgetMonth === value ? 'On time · ' : '')
                   + (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paymentMonth))
                   + (entry.budgetMonth && entry.budgetMonth !== value ? ' · ' + monthLabel(entry.budgetMonth) + ' budget' : '')
+                : entry?.status === 'recorded' ? (entry.spendingTransferred ? 'Transfer recorded' : 'From Monthly Spending')
                 : movedBalance ? (movedBalance.autoCarried ? 'Carried to ' : 'Planned for ') + monthLabel(assigned) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
               {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
@@ -345,8 +349,8 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
       {!rows.length && <tr><td colSpan={months.length + 1} className="empty-row">No commitments in this period.</td></tr>}
     </MonthGrid>
     <div className="map-footer">
-      <div className="legend">{Object.entries(statuses).map(([key, { label }]) =>
-        <span key={key}><i className={key} />{label}</span>)}</div>
+      <div className="legend">{Object.entries(statuses).filter(([key]) => key !== 'recorded' || summaries.some(summary => summary.recordedTotal > 0))
+        .map(([key, { label }]) => <span key={key}><i className={key} />{label}</span>)}</div>
       <span className="month-range">{monthLabel(months[0])} — {monthLabel(months.at(-1))}</span>
     </div>
   </section>

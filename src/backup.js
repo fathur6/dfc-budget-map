@@ -61,10 +61,14 @@ export function readBackup(text) {
       && typeof item.category === 'string' && item.category.length <= 40
       && (item.frequency === undefined || ['monthly', 'yearly'].includes(item.frequency))
       && (item.spendingSourceId === undefined || validId(item.spendingSourceId))
+      && (item.spendingSourceFrom === undefined || (item.spendingSourceId && validMonth(item.spendingSourceFrom)))
+      && (item.scheduleFrom === undefined || validDate(item.scheduleFrom))
       && (item.provisional === undefined || typeof item.provisional === 'boolean'))
     || !validateItems(budget.categories, item => item.category === undefined || spendingCategories.includes(item.category))
     || !validateEntries(budget.payments, budget.commitments, (item, month) =>
-      (item.status === undefined || ['paid', 'missed'].includes(item.status))
+      (item.status === undefined || ['paid', 'missed', 'recorded'].includes(item.status))
+      && (item.status !== 'recorded' || (item.oneOff === true && item.paymentMonth === undefined))
+      && (item.spendingTransferred === undefined || (item.spendingTransferred === true && item.status === 'recorded' && item.amount > 0))
       && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
       && (item.checklistMonth === undefined || (validMonth(item.checklistMonth) && item.status === 'paid'))
       && (item.paidDate === undefined || (item.status === 'paid' && validDate(item.paidDate)

@@ -5,7 +5,7 @@ export function commitmentChecklist(data, month, today) {
   for (const { item, months } of commitmentMonths(data, month, today)) {
     for (const dueMonth of months) {
       const entry = installment(data, item, dueMonth, today)
-      if (!entry) continue
+      if (!entry || entry.status === 'recorded') continue
       const key = paymentKey(item.id, dueMonth)
       const row = { key, item, dueMonth, due: entry.due }
       const target = outstandingBudgetMonth(entry, dueMonth, today)

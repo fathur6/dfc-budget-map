@@ -240,7 +240,7 @@ button.transfer-complete:hover:not(:disabled) { background: #204638; }
 .tile:hover { filter: brightness(1.28); transform: translateY(-1px); }
 .tile.scheduled { color: var(--amber); background: #2c2518; border-color: #56472a; }
 .tile.missed { color: var(--red); background: #362027; border-color: #663440; }
-.tile.recorded-spend { color: #b8e2f9; background: #1a2a38; border-color: #365469; }
+.tile.recorded-spend, .tile.recorded { color: #b8e2f9; background: #1a2a38; border-color: #365469; }
 .tile.paid, .tile.transferred-spend { color: var(--green); background: #173429; border-color: #2d5a46; }
 .recorded-spend[draggable="true"] { cursor: grab; }
 #spending .spending-drop-target { border-color: var(--green); }
@@ -276,6 +276,7 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .legend i { width: 8px; height: 8px; border-radius: 2px; background: var(--green); }
 .legend i.scheduled { background: var(--amber); }
 .legend i.missed { background: var(--red); }
+.legend i.recorded { background: #8bbdf7; }
 .month-range { font: 10px var(--mono); }
 .empty-row, .loading { padding: 19px !important; color: var(--muted); font-size: 13px; }
 .loading { display: flex; justify-content: space-between; align-items: center; }

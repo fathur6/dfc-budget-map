@@ -96,7 +96,8 @@ export function active(item, month) {
 }
 
 function commitmentIsDue(item, month) {
-  return active(item, month) && (item.frequency !== 'yearly' || month.slice(5) === item.start.slice(5))
+  return active(item, month) && (!item.scheduleFrom || dueDate(month, item.day) >= item.scheduleFrom)
+    && (item.frequency !== 'yearly' || month.slice(5) === item.start.slice(5))
 }
 
 export function paymentKey(id, month) {
@@ -122,7 +123,8 @@ export function installment(data, commitment, month, today) {
     ...(override?.paymentMonth && { paymentMonth: override.paymentMonth }),
     ...(override?.paidDate && { paidDate: override.paidDate }),
     ...(budgetMonth !== actual && { budgetMonth }),
-    status: paid ? 'paid'
+    ...(override?.spendingTransferred && { spendingTransferred: true }),
+    status: override?.status === 'recorded' ? 'recorded' : paid ? 'paid'
       : override?.status === 'missed' || (!commitment.provisional && due < today) ? 'missed' : 'scheduled',
   }
 }
@@ -170,21 +172,23 @@ export function monthSummary(data, month, today) {
   const committed = commitments.reduce((total, entry) => total + entry.amount, 0)
   const paid = commitments.filter(entry => entry.status === 'paid')
   const paidTotal = paid.reduce((total, entry) => total + entry.amount, 0)
+  const recorded = commitments.filter(entry => entry.status === 'recorded')
+  const recordedTotal = recorded.reduce((total, entry) => total + entry.amount, 0)
   const missed = commitments.filter(entry => entry.paymentMonth && entry.paymentMonth !== entry.dueMonth
     ? entry.status !== 'paid' && entry.paymentMonth < today.slice(0, 7)
     : entry.status === 'missed')
   const missedTotal = missed.reduce((total, entry) => total + entry.amount, 0)
-  const scheduledTotal = committed - paidTotal - missedTotal
+  const scheduledTotal = committed - paidTotal - missedTotal - recordedTotal
   const spent = Array.from(spendingByCategory.values()).reduce((total, amount) => total + amount, 0)
   const hasSpending = spendingByCategory.size > 0
   return {
-    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, scheduledTotal, missedTotal, spent, hasSpending, spendingByCategory, movedIn, movedOut,
+    income, cashInflow, otherIncome, loanProceeds, committed, paidTotal, scheduledTotal, missedTotal, recordedTotal, spent, hasSpending, spendingByCategory, movedIn, movedOut,
     spendingConfirmed: Object.hasOwn(data.spendingConfirmations ?? {}, month)
       && data.spendingConfirmations[month] === spendingReviewKey(data, month),
     beforeLoans: income == null ? null : income - committed - spent,
-    scheduledCommitment: original.reduce((total, entry) => total + entry.amount, 0),
-    count: commitments.length, paidCount: paid.length, missedCount: missed.length,
-    outstanding: committed - paidTotal,
+    scheduledCommitment: original.reduce((total, entry) => total + (entry.status === 'recorded' ? 0 : entry.amount), 0),
+    count: commitments.length - recorded.length, paidCount: paid.length, missedCount: missed.length,
+    outstanding: committed - paidTotal - recordedTotal,
     balance: cashInflow == null ? null : cashInflow - committed - spent,
   }
 }
@@ -237,7 +241,7 @@ export function carriedBudgetMonth(data, partial) {
 }
 
 export function remainingInstallment(entry) {
-  if (!entry.partial) return entry.status === 'paid' ? 0 : entry.amount
+  if (!entry.partial) return entry.status === 'paid' || entry.status === 'recorded' ? 0 : entry.amount
   if (entry.partial.settled) return 0
   return entry.amount - entry.partial.paid
     - (entry.partial.allocations ?? []).reduce((sum, allocation) => sum + allocation.amount, 0)
@@ -257,7 +261,7 @@ export function outstandingBudgetMonth(entry, dueMonth, today) {
 
 export function installmentParts(data, entry, dueMonth, today) {
   if (!entry.partial) {
-    if (entry.status === 'paid' || entry.amount <= 0) return [entry]
+    if (entry.status === 'paid' || entry.status === 'recorded' || entry.amount <= 0) return [entry]
     const target = outstandingBudgetMonth(entry, dueMonth, today)
     if (target === (entry.paymentMonth ?? dueMonth)) return [entry]
     return [{ ...entry, paymentMonth: target, status: 'scheduled', autoCarried: true }]
@@ -306,7 +310,7 @@ export function outstandingBefore(data, start, today) {
       if (!entry) continue
       for (const part of installmentParts(data, entry, dueMonth, today)) {
         const assigned = part.paymentMonth ?? dueMonth
-        if (part.status !== 'paid' && assigned < start
+        if (part.status !== 'paid' && part.status !== 'recorded' && assigned < start
           && (part.autoCarried || (assigned === dueMonth ? part.status === 'missed' : assigned < current))) total += part.amount
       }
     }
