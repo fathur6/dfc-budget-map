@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Check, Clock3, Plus, X } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, Clock3, Plus, X } from 'lucide-react'
 import { active, addMonths, categoryMonth, dateLabel, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, remainingInstallment, spendingCategories, validDate } from './budget.js'
 import { readBackup } from './backup.js'
 import { allocationRows } from './transfers.js'
@@ -102,14 +102,23 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
   }
   const allocationMonth = editor.allocationMonth ?? month
-  const canAllocate = type === 'payment' && allocationRows(data, item, allocationMonth, today).length > 0
-  const allocate = () => open({ type: 'allocate-payment', item, month: allocationMonth })
+  const allocationBalance = type === 'payment' ? allocationRows(data, item, allocationMonth, today)
+    .reduce((total, row) => total + (row.remaining ?? row.amount), 0) : 0
+  const recordAmountOption = allocationBalance > 0 && <div className="payment-record-option">
+    <div><strong>{monthLabel(allocationMonth, 'long')} budget · {money(allocationBalance)} outstanding</strong>
+      <p>Apply the payment to the oldest outstanding instalment first.</p></div>
+    <button type="button" className="button primary" disabled={busy} data-initial-focus
+      onClick={() => open({ type: 'allocate-payment', item, month: allocationMonth })}>
+      Record amount <ArrowRight size={15} aria-hidden="true" />
+    </button>
+  </div>
 
   if (type === 'payment' && entry?.partial?.allocations) {
     const remaining = remainingInstallment(entry)
     return <Modal title={item.name} close={close}>
       <div className="editor">
         <p className="muted form-note">{monthLabel(month, 'long')} instalment · {money(entry.amount - remaining)} paid · {money(remaining)} remaining</p>
+        {recordAmountOption}
         <dl className="transfer-breakdown">
           {entry.partial.paid > 0 && <div><dt>Previously recorded</dt><dd>{money(entry.partial.paid)}</dd></div>}
           {entry.partial.allocations.map((payment, index) => <div key={index}>
@@ -118,7 +127,6 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         </dl>
         <footer className="modal-actions"><div className="spacer" />
           <button type="button" className="button secondary" onClick={close}>Done</button>
-          {canAllocate && <button type="button" className="button primary" onClick={allocate}>Record amount</button>}
         </footer>
       </div>
     </Modal>
@@ -317,8 +325,11 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
         }).format(new Date(due + 'T00:00:00Z'))}</p>
         {oneOff && <p className="muted form-note">One-off instalment originally due in {monthLabel(month, 'long')}.</p>}
+        {recordAmountOption}
         <fieldset className="status-picker"><legend>Payment status</legend>
-          {[['paid', 'Paid', Check], ['partial', 'Partially paid', Clock3], ['auto', 'Planned', Clock3], ['missed', 'Missed', AlertTriangle]]
+          {[['paid', 'Paid', Check],
+            ...(payment?.partial || !allocationBalance ? [['partial', 'Partially paid', Clock3]] : []),
+            ['auto', 'Planned', Clock3], ['missed', 'Missed', AlertTriangle]]
             .map(([value, label, Icon]) => <label className={['auto', 'partial'].includes(value) ? 'scheduled' : value} key={value}>
               <input type="radio" name="status" value={value} checked={paymentStatus === value} onChange={() => setPaymentStatus(value)} />
               <span><Icon size={16} />{label}</span>
@@ -385,7 +396,6 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           <button type="button" className="button secondary" disabled={busy}
             onClick={() => open({ type: 'copy-spending', item, sourceMonth: month })}>Copy to month</button>}
         {type === 'payment' && payment?.oneOff && <button type="submit" value="remove-payment" formNoValidate disabled={busy} className="button danger">Remove monthly entry</button>}
-        {canAllocate && <button type="button" className="button secondary" disabled={busy} onClick={allocate}>Record amount</button>}
         {item && ['commitment', 'category'].includes(type) && (confirm
           ? <button type="submit" value="delete" formNoValidate disabled={busy} className="button danger">Confirm delete</button>
           : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { money, monthLabel, parseMoney } from './budget.js'
+import { money, monthLabel, parseMoney, paymentBudgetMonth, validDate } from './budget.js'
 import { Modal } from './editors.jsx'
 import { allocationRows, recordAllocatedPayment, splitPayment } from './transfers.js'
 
@@ -13,6 +13,8 @@ export function PaymentAllocation({ data, item, month, today, close, save }) {
   const amount = parseMoney(amountInput)
   const plan = splitPayment(rows, amount)
   const exceedsBalance = amount > due
+  const dateAllowed = validDate(date) && date <= today
+  const cashFlowMonth = dateAllowed ? paymentBudgetMonth(data, date.slice(0, 7), month, date) : null
 
   async function submit(event) {
     event.preventDefault()
@@ -39,6 +41,7 @@ export function PaymentAllocation({ data, item, month, today, close, save }) {
         <label className="field"><span>Date paid</span><input type="date" min="2000-01-01" max={today}
           value={date} onChange={event => setDate(event.target.value)} required /></label>
       </div>
+      {cashFlowMonth && <p className="muted form-note" role="status">Counts toward {monthLabel(cashFlowMonth, 'long')} cash flow.</p>}
       {plan.length > 0 && <div className="payment-allocation-scroll">
         <table className="payment-allocation-table">
           <thead><tr><th scope="col">Instalment due</th><th scope="col">Apply</th><th scope="col">Remaining</th></tr></thead>
@@ -51,7 +54,7 @@ export function PaymentAllocation({ data, item, month, today, close, save }) {
       {(error || exceedsBalance) && <p className="form-error" role="alert">{error || 'The payment exceeds the outstanding balance.'}</p>}
       <footer className="modal-actions"><div className="spacer" />
         <button type="button" className="button secondary" onClick={close} disabled={busy}>Cancel</button>
-        <button type="submit" className="button primary" disabled={busy || !amount || exceedsBalance || !date}>
+        <button type="submit" className="button primary" disabled={busy || !amount || exceedsBalance || !dateAllowed}>
           {busy ? 'Saving…' : 'Record payment'}
         </button>
       </footer>

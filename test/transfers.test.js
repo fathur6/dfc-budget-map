@@ -50,6 +50,23 @@ test('allocates a smaller payment entirely against the oldest outstanding instal
   assert.equal(monthSummary(updated, december, today).paidTotal, 15000)
 })
 
+test('records a full October instalment against the December budget using the actual November payment date', () => {
+  const budget = emptyBudget()
+  const october = '2026-10'
+  const paidDate = '2026-11-25'
+  const item = { id: 'insurance', name: 'Insurance', category: 'Insurance', start: october, end: '', day: 1, amount: 15400 }
+  budget.commitments = [item]
+  const updated = recordAllocatedPayment(budget, item, december, 15400, paidDate, paidDate)
+
+  assert.deepEqual(updated.payments['insurance:2026-10'].partial.allocations, [
+    { amount: 15400, date: paidDate, month: december, checklistMonth: december },
+  ])
+  assert.deepEqual(allocationRows(updated, item, december, paidDate).map(row => row.dueMonth), [november, december])
+  assert.equal(monthSummary(updated, november, paidDate).paidTotal, 0)
+  assert.equal(monthSummary(updated, december, paidDate).paidTotal, 15400)
+  assert.equal(monthSummary(updated, december, paidDate).outstanding, 30800)
+})
+
 test('rolls insurance arrears into the next budget and allocates oldest first across cutoffs', () => {
   const budget = emptyBudget()
   const october = '2026-10'
