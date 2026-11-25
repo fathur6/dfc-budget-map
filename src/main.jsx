@@ -319,7 +319,9 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
                 + (entry.partial.settled ? (entry.partial.paidDate ? ' paid on ' + dateLabel(entry.partial.paidDate)
                   : ' paid in ' + monthLabel(entry.partial.paidMonth ?? entry.partial.month)) : ' carried to ' + monthLabel(assigned))
               : entry?.status === 'paid' && (entry.paidDate || entry.paymentMonth !== undefined)
-                ? (entry.budgetMonth ? 'On time · ' : '') + (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paymentMonth))
+                ? (entry.budgetMonth === value ? 'On time · ' : '')
+                  + (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paymentMonth))
+                  + (entry.budgetMonth && entry.budgetMonth !== value ? ' · ' + monthLabel(entry.budgetMonth) + ' budget' : '')
                 : movedBalance ? (movedBalance.autoCarried ? 'Carried to ' : 'Planned for ') + monthLabel(assigned) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
               {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
