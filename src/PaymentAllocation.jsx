@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { money, monthLabel, parseMoney, paymentBudgetMonth, validDate } from './budget.js'
+import { inputMoney, money, monthLabel, parseMoney, paymentBudgetMonth, validDate } from './budget.js'
 import { Modal } from './editors.jsx'
 import { allocationRows, recordAllocatedPayment, splitPayment } from './transfers.js'
 
-export function PaymentAllocation({ data, item, month, today, close, save }) {
-  const [amountInput, setAmountInput] = useState('')
+export function PaymentAllocation({ data, item, month, today, initialAmount, close, save }) {
+  const [amountInput, setAmountInput] = useState(() => inputMoney(initialAmount))
   const [date, setDate] = useState(today)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -41,7 +41,8 @@ export function PaymentAllocation({ data, item, month, today, close, save }) {
         <label className="field"><span>Date paid</span><input type="date" min="2000-01-01" max={today}
           value={date} onChange={event => setDate(event.target.value)} required /></label>
       </div>
-      {cashFlowMonth && <p className="muted form-note" role="status">Counts toward {monthLabel(cashFlowMonth, 'long')} cash flow.</p>}
+      {cashFlowMonth && <p className="muted form-note" role="status">Counts toward {monthLabel(cashFlowMonth, 'long')} cash flow.
+        {amount > 0 && !exceedsBalance && <> {money(due - amount)} remains after this payment.</>}</p>}
       {plan.length > 0 && <div className="payment-allocation-scroll">
         <table className="payment-allocation-table">
           <thead><tr><th scope="col">Instalment due</th><th scope="col">Apply</th><th scope="col">Remaining</th></tr></thead>

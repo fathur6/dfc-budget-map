@@ -325,6 +325,8 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .status-picker { display: flex; flex-wrap: wrap; gap: 7px; border: 0; padding: 0; margin: 0; }
 .status-picker legend { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
 .status-picker label { position: relative; cursor: pointer; }
+.status-picker .status-action { padding: 0; border-radius: 7px; }
+.status-picker .status-action:hover:not(:disabled) span { background: #173429; border-color: currentColor; }
 .status-picker input { opacity: 0; position: absolute; }
 .status-picker span { display: flex; align-items: center; gap: 6px; padding: 9px; border-radius: 7px; border: 1px solid #3a4855; font-size: 12px; }
 .status-picker .paid { color: var(--green); }

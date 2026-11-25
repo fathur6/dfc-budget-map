@@ -102,13 +102,16 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
   }
   const allocationMonth = editor.allocationMonth ?? month
-  const allocationBalance = type === 'payment' ? allocationRows(data, item, allocationMonth, today)
-    .reduce((total, row) => total + (row.remaining ?? row.amount), 0) : 0
+  const payableRows = type === 'payment' ? allocationRows(data, item, allocationMonth, today) : []
+  const allocationBalance = payableRows.reduce((total, row) => total + (row.remaining ?? row.amount), 0)
+  const oldest = payableRows[0]
+  const paidUsesAllocation = oldest && entry && remainingInstallment(entry) > 0
+  const openAllocation = initialAmount => open({ type: 'allocate-payment', item, month: allocationMonth, initialAmount })
   const recordAmountOption = allocationBalance > 0 && <div className="payment-record-option">
     <div><strong>{monthLabel(allocationMonth, 'long')} budget · {money(allocationBalance)} outstanding</strong>
       <p>Apply the payment to the oldest outstanding instalment first.</p></div>
     <button type="button" className="button primary" disabled={busy} data-initial-focus
-      onClick={() => open({ type: 'allocate-payment', item, month: allocationMonth })}>
+      onClick={() => openAllocation()}>
       Record amount <ArrowRight size={15} aria-hidden="true" />
     </button>
   </div>
@@ -327,7 +330,11 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         {oneOff && <p className="muted form-note">One-off instalment originally due in {monthLabel(month, 'long')}.</p>}
         {recordAmountOption}
         <fieldset className="status-picker"><legend>Payment status</legend>
-          {[['paid', 'Paid', Check],
+          {paidUsesAllocation && <button type="button" className="status-action paid" disabled={busy}
+            onClick={() => openAllocation(oldest.remaining ?? oldest.amount)}>
+            <span><Check size={16} aria-hidden="true" />Paid</span>
+          </button>}
+          {[...(paidUsesAllocation ? [] : [['paid', 'Paid', Check]]),
             ...(payment?.partial || !allocationBalance ? [['partial', 'Partially paid', Clock3]] : []),
             ['auto', 'Planned', Clock3], ['missed', 'Missed', AlertTriangle]]
             .map(([value, label, Icon]) => <label className={['auto', 'partial'].includes(value) ? 'scheduled' : value} key={value}>

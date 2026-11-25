@@ -654,7 +654,7 @@ function App() {
     {editor?.type === 'opening-cash' && data && <OpeningCashEditor data={data} openingCash={data.openingCash}
       month={month} close={() => setEditor(null)} save={save} />}
     {editor?.type === 'allocate-payment' && data && <PaymentAllocation key={editor.item.id + ':' + editor.month}
-      data={data} item={editor.item} month={editor.month} today={today} close={() => setEditor(null)} save={save} />}
+      data={data} item={editor.item} month={editor.month} today={today} initialAmount={editor.initialAmount} close={() => setEditor(null)} save={save} />}
     {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown', 'opening-cash', 'allocate-payment'].includes(editor.type) && snapshot && <Editor
       key={identity + ':' + editor.type} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
       today={today} save={save} reload={refresh} open={setEditor} />}
