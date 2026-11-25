@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readBackup } from '../src/backup.js'
 import { emptyBudget, installment, monthSummary, outstandingBefore, salaryChecklistMonth } from '../src/budget.js'
-import { allocationRows, commitmentChecklist, markCommitmentPaid, recordAllocatedPayment, spendingChecklist, splitPayment } from '../src/transfers.js'
+import { allocationRows, checklistProgress, commitmentChecklist, isOutstandingArrears, markCommitmentPaid, recordAllocatedPayment, spendingChecklist, splitPayment } from '../src/transfers.js'
 
 const today = '2026-11-24'
 const november = '2026-11'
@@ -210,4 +210,30 @@ test('keeps spending transfer status scoped to the selected month without changi
   assert.equal(spendingChecklist(budget, november)[0].transferred, false)
   assert.equal(monthSummary(budget, december, today).spent, 150000)
   assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget })), budget)
+})
+
+test('shows partial payments in completed value and counts only outstanding arrears', () => {
+  const budget = emptyBudget()
+  const item = { id: 'insurance', name: 'Insurance', category: 'Insurance', start: '2026-10', end: '', day: 1, amount: 13850 }
+  budget.commitments = [item]
+  const updated = recordAllocatedPayment(budget, item, december, 20000, today, today)
+  const rows = commitmentChecklist(updated, december, today)
+  const isArrears = row => isOutstandingArrears(row, december, today)
+
+  assert.deepEqual(rows.filter(isArrears).map(row => row.dueMonth), [november])
+  assert.deepEqual(checklistProgress(rows, row => row.status === 'paid' ? 0 : row.remaining ?? row.amount, isArrears), {
+    total: 41550, remaining: 21550, arrears: 7700, count: 3, completed: 1, completedAmount: 20000,
+  })
+  assert.equal(isOutstandingArrears({ due: '2026-12-01', dueMonth: december, item, status: 'scheduled' }, '2026-12', '2026-12-02'), true)
+})
+
+test('spending progress counts entered amounts and updates after undoing a transfer', () => {
+  const rows = [{ amount: 150000, transferred: true }, { amount: 50000 }, { amount: null }, { amount: 0 }]
+  const progress = () => checklistProgress(rows, row => row.transferred ? 0 : row.amount)
+  assert.deepEqual(progress(), {
+    total: 200000, remaining: 50000, arrears: 0, count: 2, completed: 1, completedAmount: 150000,
+  })
+  rows[0].transferred = false
+  assert.equal(progress().completedAmount, 0)
+  assert.equal(progress().remaining, 200000)
 })

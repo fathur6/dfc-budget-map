@@ -100,12 +100,33 @@ h1 { font-size: clamp(32px, 4.3vw, 52px); font-weight: 690; line-height: 1.06; }
 h2 { font-size: 19px; font-weight: 670; }
 .panel-heading p { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
 .transfer-income .panel-heading, .transfer-income-form { flex-wrap: wrap; }
+.transfer-income .panel-heading { align-items: flex-start; }
 .transfer-inflow-value { display: grid; gap: 3px; font: 13px var(--mono); }
 .transfer-inflow-value strong { color: var(--green); font-size: 20px; }
 .transfer-inflow-value small { color: var(--muted); font: 11px 'Geist Variable', sans-serif; }
-.transfer-income-form { display: flex; align-items: end; gap: 9px; padding: 0 18px 17px; }
+.transfer-income-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr); align-items: start; gap: 16px; padding: 0 18px 17px; }
+.transfer-income-form { display: flex; align-items: end; gap: 9px; }
 .transfer-income-form .field { flex: 1 1 180px; max-width: 265px; }
 .transfer-income-form .button { min-height: 38px; }
+.transfer-progress-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.transfer-progress-card { min-width: 0; display: grid; align-content: start; gap: 11px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); }
+.transfer-progress-head { display: flex; justify-content: space-between; align-items: center; gap: 7px; }
+.transfer-progress-head h3, .transfer-arrears-heading h3 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 12px; font-weight: 650; }
+.transfer-progress-head svg { color: var(--green); flex: none; }
+.transfer-progress-head strong { color: var(--green); font: 650 13px var(--mono); }
+.transfer-progress-track { display: flex; height: 9px; overflow: hidden; border-radius: 9px; background: var(--line); }
+.transfer-progress-track span { flex: 0 0 0; min-width: 0; }
+.progress-done { background: linear-gradient(180deg, var(--green), #2ab58c); }
+.progress-unpaid { background: linear-gradient(180deg, var(--amber), #ad7633); }
+.progress-untransferred { background: linear-gradient(180deg, var(--blue), #4778b0); }
+.progress-arrears { background: linear-gradient(180deg, var(--red), #c44c66); }
+.transfer-progress-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.transfer-progress-values dt, .transfer-progress-arrears { display: flex; align-items: center; gap: 5px; }
+.transfer-progress-values dt { color: var(--muted); font-size: 11px; }
+.transfer-progress-values dd { margin: 4px 0 0; font: 600 12px var(--mono); overflow-wrap: anywhere; }
+.transfer-progress-values i, .transfer-progress-arrears i { flex: none; width: 7px; height: 7px; border-radius: 2px; }
+.transfer-progress-arrears { justify-self: start; padding: 0; color: var(--red); text-align: left; font-size: 11px; font-weight: 600; }
+.transfer-progress-arrears:hover { text-decoration: underline; }
 .transfer-instruction { margin: 12px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .transfer-checklists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .monthly-transfer > .form-error { margin-bottom: 12px; }
@@ -122,17 +143,28 @@ h2 { font-size: 19px; font-weight: 670; }
 .transfer-row-description small, .transfer-empty { color: var(--muted); font-size: 11px; line-height: 1.4; }
 .transfer-empty { padding: 0 18px 18px; }
 .transfer-row-amount { font: 600 11px var(--mono); white-space: nowrap; }
+.transfer-arrears-heading { display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 10px 14px; border-top: 1px solid #663440; background: #362027; color: var(--red); }
+.transfer-arrears-heading h3 svg { flex: none; }
+.transfer-arrears-heading strong { font: 650 12px var(--mono); white-space: nowrap; }
+.transfer-arrears-rows li { border-top-color: #432a33; background: #2a1d24; }
+.transfer-arrears-rows :is(.transfer-row-amount, .transfer-row-description small:first-of-type) { color: var(--red); }
 .transfer-complete { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 10px; border: 1px solid #2d5a46; border-radius: 7px; background: #173429; color: var(--green); font-size: 12px; font-weight: 650; }
 .transfer-complete svg { flex: none; }
 button.transfer-complete:hover:not(:disabled) { background: #204638; }
 @media (max-width: 1100px) {
   .transfer-checklists { grid-template-columns: minmax(0, 1fr); }
 }
+@media (max-width: 900px) {
+  .transfer-income-body { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 690px) {
   .month-controls { flex-wrap: wrap; max-width: 100%; }
   .transfer-rows li { grid-template-columns: minmax(0, 1fr) auto; gap: 5px 9px; }
   .transfer-row-description { grid-row: span 2; }
   .transfer-row-amount, .transfer-rows li > :last-child { justify-self: end; }
+}
+@media (max-width: 520px) {
+  .transfer-progress-grid { grid-template-columns: minmax(0, 1fr); }
 }
 .overview-insights { margin-top: 0; margin-bottom: 13px; }
 .overview-insights .panel-heading { flex-wrap: wrap; }

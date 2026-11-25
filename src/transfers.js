@@ -119,3 +119,22 @@ export function spendingChecklist(data, month) {
     return [{ key, item, amount: entry.spent, transferred: data.spending[key]?.transferred === true }]
   })
 }
+
+export function isOutstandingArrears(row, month, today) {
+  return row.status !== 'paid' && (row.dueMonth < month || row.status === 'missed'
+    || (!row.item.provisional && row.due < today))
+}
+
+export function checklistProgress(rows, remainingAmount, isArrears = () => false) {
+  const progress = { total: 0, remaining: 0, arrears: 0, count: 0, completed: 0 }
+  for (const row of rows) {
+    if (!(row.amount > 0)) continue
+    const remaining = remainingAmount(row)
+    progress.total += row.amount
+    progress.remaining += remaining
+    progress.count += 1
+    if (remaining === 0) progress.completed += 1
+    if (isArrears(row)) progress.arrears += remaining
+  }
+  return { ...progress, completedAmount: progress.total - progress.remaining }
+}
