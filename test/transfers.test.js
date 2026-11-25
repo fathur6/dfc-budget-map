@@ -1,12 +1,53 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readBackup } from '../src/backup.js'
-import { emptyBudget, installment, monthSummary, salaryChecklistMonth } from '../src/budget.js'
-import { commitmentChecklist, markCommitmentPaid, spendingChecklist } from '../src/transfers.js'
+import { emptyBudget, installment, monthSummary, outstandingBefore, salaryChecklistMonth } from '../src/budget.js'
+import { allocationRows, commitmentChecklist, markCommitmentPaid, recordAllocatedPayment, spendingChecklist, splitPayment } from '../src/transfers.js'
 
 const today = '2026-11-24'
 const november = '2026-11'
 const december = '2026-12'
+
+test('allocates RM2300 to the carried November balance and then December, with no double count', () => {
+  const budget = emptyBudget()
+  const item = { id: 'akpk', name: 'AKPK', start: november, end: '', amount: 223000, category: 'Financing', day: 20 }
+  budget.commitments = [item]
+  budget.payments['akpk:2026-11'] = { amount: 230000, partial: { paid: 79000, month: december, settled: false } }
+  const rows = allocationRows(budget, item, december, today)
+  assert.deepEqual(splitPayment(rows, 230000).map(slice => [slice.row.dueMonth, slice.amount, slice.remaining]), [
+    [november, 151000, 0], [december, 79000, 144000],
+  ])
+  assert.throws(() => recordAllocatedPayment(budget, item, december, 374001, today, today), /outstanding balance/)
+  assert.throws(() => recordAllocatedPayment(budget, item, december, 230000, '2026-11-25', today), /today or earlier/)
+  const updated = recordAllocatedPayment(budget, item, december, 230000, today, today)
+  const summary = monthSummary(updated, december, today)
+  assert.equal(summary.committed, 374000)
+  assert.equal(summary.paidTotal, 230000)
+  assert.equal(summary.outstanding, 144000)
+  assert.equal(monthSummary(updated, november, today).paidTotal, 79000)
+  const decemberChecklist = commitmentChecklist(updated, december, today)
+  assert.equal(decemberChecklist.find(row => row.dueMonth === november).status, 'paid')
+  assert.equal(decemberChecklist.find(row => row.dueMonth === december).remaining, 144000)
+  assert.equal(outstandingBefore(updated, '2027-01', '2026-12-25'), 144000)
+
+  const partialAgain = recordAllocatedPayment(updated, item, december, 44000, today, today)
+  const closingRow = commitmentChecklist(partialAgain, december, today).find(row => row.dueMonth === december)
+  assert.equal(closingRow.remaining, 100000)
+  const fullyPaid = markCommitmentPaid(partialAgain, closingRow, december, today)
+  assert.equal(monthSummary(fullyPaid, december, today).paidTotal, 374000)
+  assert.equal(monthSummary(fullyPaid, december, today).outstanding, 0)
+  assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: fullyPaid })), fullyPaid)
+})
+
+test('allocates a smaller payment entirely against the oldest outstanding instalment', () => {
+  const budget = budgetWithTransfers()
+  const item = budget.commitments.find(item => item.id === 'partial')
+  const updated = recordAllocatedPayment(budget, item, december, 15000, today, today)
+  const row = commitmentChecklist(updated, december, today).find(row => row.item.id === item.id)
+  assert.equal(row.remaining, 109000)
+  assert.equal(row.status, 'scheduled')
+  assert.equal(monthSummary(updated, december, today).paidTotal, 15000)
+})
 
 function budgetWithTransfers() {
   const budget = emptyBudget()

@@ -10,7 +10,7 @@ function Checklist({ id, title, icon: Icon, rows, isComplete, verb, empty, child
   return <section className="panel transfer-checklist" aria-labelledby={id}>
     <div className="panel-heading">
       <div><div className="section-title"><Icon size={18} /><h2 id={id}>{title}</h2></div>
-        <p>{actionable.length - pending.length} of {actionable.length} {verb} · {money(pending.reduce((sum, row) => sum + row.amount, 0))} remaining</p>
+        <p>{actionable.length - pending.length} of {actionable.length} {verb} · {money(pending.reduce((sum, row) => sum + (row.remaining ?? row.amount), 0))} remaining</p>
       </div>
     </div>
     {rows.length ? <ul className="transfer-rows">{rows.map(row => <li key={row.key}>{children(row)}</li>)}</ul>
@@ -22,6 +22,12 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const commitments = commitmentChecklist(data, month, today)
+  const firstPayable = new Map()
+  for (const row of commitments) {
+    if (row.status !== 'paid' && row.dueMonth <= month && !firstPayable.has(row.item.id)) {
+      firstPayable.set(row.item.id, row.key)
+    }
+  }
   const spending = spendingChecklist(data, month)
   const current = today.slice(0, 7)
   const baseIncome = Object.hasOwn(data.incomeByMonth, month) ? data.incomeByMonth[month] : data.income
@@ -96,13 +102,18 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
         {row => <>
           <div className="transfer-row-description">
             <button type="button" className="transfer-row-name"
-              onClick={() => open({ type: 'payment', item: row.item, month: row.dueMonth })} disabled={saving}>{row.item.name}</button>
+              onClick={() => open({ type: 'payment', item: row.item, month: row.dueMonth, allocationMonth: month })} disabled={saving}>{row.item.name}</button>
             <small>{row.portion === 'remainder' ? 'Carried balance · ' : row.portion === 'partial' ? 'Partial payment · ' : ''}
               Due {Number(row.due.slice(-2))} {monthLabel(row.dueMonth)}
               {row.paidDate ? ' · Paid on ' + dateLabel(row.paidDate)
                 : row.paidMonth && row.paidMonth !== month && ' · Paid in ' + monthLabel(row.paidMonth)}</small>
+            {row.remaining > 0 && row.remaining < row.amount && <small>
+              {money(row.amount - row.remaining)} paid · {money(row.remaining)} remaining</small>}
+            {firstPayable.get(row.item.id) === row.key && <button type="button" className="transfer-allocation-link" disabled={saving}
+              aria-label={'Record amount for ' + row.item.name}
+              onClick={() => open({ type: 'allocate-payment', item: row.item, month })}>Record amount</button>}
           </div>
-          <strong className="transfer-row-amount">{money(row.amount)}</strong>
+          <strong className="transfer-row-amount">{money(row.remaining > 0 ? row.remaining : row.amount)}</strong>
           {row.status === 'paid' ? <span className="transfer-complete"><Check size={14} /> Paid</span>
             : <button type="button" className="button secondary" aria-label={'Mark ' + row.item.name + (row.portion === 'remainder' ? ' carried balance' : '') + ' paid'}
               disabled={saving} onClick={() => update(() => markCommitmentPaid(data, row, month, todayMYT()))}>Mark paid</button>}

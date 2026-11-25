@@ -60,7 +60,7 @@ export function salaryChecklistMonth(data, month, today) {
   return Number(today.slice(-2)) > 20 || data.salaryReceipts?.[next]?.slice(0, 7) === current ? next : month
 }
 
-function paymentBudgetMonth(data, actual, target, paidDate, hasLegacyTarget) {
+export function paymentBudgetMonth(data, actual, target, paidDate, hasLegacyTarget = false) {
   if (!validMonth(target) || target !== addMonths(actual, 1)) return actual
   const received = data.salaryReceipts?.[target]
   const afterReceipt = received?.slice(0, 7) === actual && received <= paidDate
@@ -123,14 +123,10 @@ export function monthSummary(data, month, today) {
     const entry = installment(data, item, month, today)
     return entry ? [allocatedInstallment(entry, item, month)] : []
   })
-  const allocated = original.map(entry => entry.partial
-    ? { ...entry, amount: carriedBalance(data, entry).paymentMonth === month ? entry.amount : entry.partial.paid, status: 'paid' } : entry)
-  const movedOut = [
-    ...original.filter(entry => entry.paymentMonth && entry.paymentMonth !== month),
-    ...original.filter(entry => entry.partial).map(entry => carriedBalance(data, entry)).filter(entry => entry.paymentMonth !== month),
-  ]
+  const parts = original.flatMap(entry => installmentParts(data, entry, month))
+  const movedOut = parts.filter(entry => entry.paymentMonth && entry.paymentMonth !== month)
   const movedIn = movedInstallments(data, today).filter(entry => entry.paymentMonth === month)
-  const commitments = [...allocated.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
+  const commitments = [...parts.filter(entry => !entry.paymentMonth || entry.paymentMonth === month), ...movedIn]
   const spendingByCategory = new Map()
   for (const item of data.categories) {
     const amount = categoryMonth(data, item, month)?.spent
@@ -213,14 +209,30 @@ export function carriedBudgetMonth(data, partial) {
   return partial.settled ? paymentBudgetMonth(data, actual, partial.month, partial.paidDate, Boolean(partial.paidMonth)) : actual
 }
 
-function carriedBalance(data, entry) {
-  return {
-    ...entry,
-    amount: entry.amount - entry.partial.paid,
-    paymentMonth: carriedBudgetMonth(data, entry.partial),
-    ...(entry.partial.settled && { paidMonth: entry.partial.paidMonth ?? entry.partial.month, paidDate: entry.partial.paidDate }),
-    status: entry.partial.settled ? 'paid' : 'scheduled',
+export function remainingInstallment(entry) {
+  if (!entry.partial) return entry.status === 'paid' ? 0 : entry.amount
+  if (entry.partial.settled) return 0
+  return entry.amount - entry.partial.paid
+    - (entry.partial.allocations ?? []).reduce((sum, allocation) => sum + allocation.amount, 0)
+}
+
+export function installmentParts(data, entry, dueMonth) {
+  if (!entry.partial) return [entry]
+  const { paid, settled, paidMonth, paidDate, allocations = [] } = entry.partial
+  const carryMonth = carriedBudgetMonth(data, entry.partial)
+  if (settled && carryMonth === dueMonth) return [{ ...entry, status: 'paid' }]
+  const parts = paid > 0 ? [{ ...entry, amount: paid, status: 'paid' }] : []
+  parts.push(...allocations.map((allocation, allocationIndex) => ({
+    ...entry, amount: allocation.amount, paymentMonth: allocation.month, paidDate: allocation.date,
+    paidMonth: allocation.date.slice(0, 7), status: 'paid', allocationIndex,
+  })))
+  const remaining = settled ? entry.amount - paid : remainingInstallment(entry)
+  if (remaining > 0) {
+    parts.push({ ...entry, amount: remaining, paymentMonth: carryMonth,
+      ...(settled && { paidMonth: paidMonth ?? entry.partial.month, paidDate }),
+      status: settled ? 'paid' : carryMonth === dueMonth ? entry.status : 'scheduled' })
   }
+  return parts
 }
 
 function movedInstallments(data, today) {
@@ -232,8 +244,7 @@ function movedInstallments(data, today) {
     const entry = item && installment(data, item, dueMonth, today)
     if (!entry) return []
     const original = allocatedInstallment(entry, item, dueMonth)
-    const moved = entry.partial ? carriedBalance(data, original) : original
-    return moved.paymentMonth === dueMonth ? [] : [moved]
+    return installmentParts(data, original, dueMonth).filter(part => part.paymentMonth && part.paymentMonth !== dueMonth)
   })
 }
 
@@ -245,7 +256,8 @@ export function outstandingBefore(data, start, today) {
     const last = item.end && item.end < current ? item.end : current
     for (let month = item.start; month < start && month <= last; month = addMonths(month, 1)) {
       const entry = installment(data, item, month, today)
-      if (!entry.partial && entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
+      if (entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)
+        && (!entry.partial || entry.partial.month === month)) total += remainingInstallment(entry)
     }
   }
   for (const [key, payment] of Object.entries(data.payments)) {
@@ -254,7 +266,8 @@ export function outstandingBefore(data, start, today) {
     const item = commitments.get(id)
     if (!item || active(item, month) || month >= start || month > current) continue
     const entry = installment(data, item, month, today)
-    if (!entry.partial && entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)) total += entry.amount
+    if (entry.status === 'missed' && (!entry.paymentMonth || entry.paymentMonth === month)
+      && (!entry.partial || entry.partial.month === month)) total += remainingInstallment(entry)
   }
   for (const entry of movedInstallments(data, today)) {
     if (entry.status !== 'paid' && entry.paymentMonth < start && entry.paymentMonth < current) total += entry.amount

@@ -114,6 +114,11 @@ h2 { font-size: 19px; font-weight: 670; }
 .transfer-row-description { min-width: 0; display: grid; gap: 4px; }
 .transfer-row-name { padding: 0; text-align: left; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 .transfer-row-name:hover:not(:disabled) { color: var(--blue); text-decoration: underline; }
+.transfer-allocation-link { justify-self: start; padding: 1px 0; color: var(--blue); font-size: 11px; text-decoration: underline; }
+.payment-allocation-scroll { overflow-x: auto; }
+.payment-allocation-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.payment-allocation-table :is(th, td) { padding: 8px 5px; border-bottom: 1px solid var(--line); text-align: left; }
+.payment-allocation-table td { font: 11px var(--mono); white-space: nowrap; }
 .transfer-row-description small, .transfer-empty { color: var(--muted); font-size: 11px; line-height: 1.4; }
 .transfer-empty { padding: 0 18px 18px; }
 .transfer-row-amount { font: 600 11px var(--mono); white-space: nowrap; }

@@ -30,6 +30,15 @@ function validateEntries(map, items, validateEntry, allowOneOff = false) {
   })
 }
 
+function validAllocations(partial, total) {
+  if (partial.allocations === undefined) return partial.paid > 0
+  return !partial.settled && Array.isArray(partial.allocations) && partial.allocations.length > 0
+    && partial.allocations.every(entry => record(entry) && validAmount(entry.amount) && entry.amount > 0
+      && validDate(entry.date) && validMonth(entry.month)
+      && [entry.date.slice(0, 7), addMonths(entry.date.slice(0, 7), 1)].includes(entry.month))
+    && partial.allocations.reduce((sum, entry) => sum + entry.amount, partial.paid) <= total
+}
+
 export function readBackup(text) {
   let file
   try { file = JSON.parse(text) } catch { throw invalidBackup() }
@@ -59,8 +68,8 @@ export function readBackup(text) {
         && item.paidDate.slice(0, 7) === (item.paymentMonth ?? month)))
       && (item.partial === undefined || (record(item.partial)
         && item.status === undefined && item.paymentMonth === undefined && validAmount(item.amount)
-        && validAmount(item.partial.paid) && item.partial.paid > 0 && item.partial.paid < item.amount
-        && validMonth(item.partial.month) && item.partial.month > month
+        && validAmount(item.partial.paid) && item.partial.paid < item.amount && validAllocations(item.partial, item.amount)
+        && validMonth(item.partial.month) && (item.partial.allocations ? item.partial.month >= month : item.partial.month > month)
         && typeof item.partial.settled === 'boolean'
         && (item.partial.paidMonth === undefined || (item.partial.settled
           && validMonth(item.partial.paidMonth) && item.partial.paidMonth >= month))

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, Clock3, Plus, X } from 'lucide-react'
-import { active, addMonths, categoryMonth, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, spendingCategories, validDate } from './budget.js'
+import { active, addMonths, categoryMonth, dateLabel, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, remainingInstallment, spendingCategories, validDate } from './budget.js'
 import { readBackup } from './backup.js'
+import { allocationRows } from './transfers.js'
 
 export const statuses = {
   paid: { label: 'Paid', icon: Check },
@@ -100,6 +101,29 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     category: item ? 'Edit spending item' : 'Add spending item',
     spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
   }
+  const allocationMonth = editor.allocationMonth ?? month
+  const canAllocate = type === 'payment' && allocationRows(data, item, allocationMonth, today).length > 0
+  const allocate = () => open({ type: 'allocate-payment', item, month: allocationMonth })
+
+  if (type === 'payment' && entry?.partial?.allocations) {
+    const remaining = remainingInstallment(entry)
+    return <Modal title={item.name} close={close}>
+      <div className="editor">
+        <p className="muted form-note">{monthLabel(month, 'long')} instalment · {money(entry.amount - remaining)} paid · {money(remaining)} remaining</p>
+        <dl className="transfer-breakdown">
+          {entry.partial.paid > 0 && <div><dt>Previously recorded</dt><dd>{money(entry.partial.paid)}</dd></div>}
+          {entry.partial.allocations.map((payment, index) => <div key={index}>
+            <dt>{dateLabel(payment.date)}<small>{monthLabel(payment.month)} budget</small></dt><dd>{money(payment.amount)}</dd>
+          </div>)}
+        </dl>
+        <footer className="modal-actions"><div className="spacer" />
+          <button type="button" className="button secondary" onClick={close}>Done</button>
+          {canAllocate && <button type="button" className="button primary" onClick={allocate}>Record amount</button>}
+        </footer>
+      </div>
+    </Modal>
+  }
+
   async function submit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -361,6 +385,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           <button type="button" className="button secondary" disabled={busy}
             onClick={() => open({ type: 'copy-spending', item, sourceMonth: month })}>Copy to month</button>}
         {type === 'payment' && payment?.oneOff && <button type="submit" value="remove-payment" formNoValidate disabled={busy} className="button danger">Remove monthly entry</button>}
+        {canAllocate && <button type="button" className="button secondary" disabled={busy} onClick={allocate}>Record amount</button>}
         {item && ['commitment', 'category'].includes(type) && (confirm
           ? <button type="submit" value="delete" formNoValidate disabled={busy} className="button danger">Confirm delete</button>
           : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}

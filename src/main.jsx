@@ -8,8 +8,8 @@ import {
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import {
-  active, addMonths, carriedBudgetMonth, categoryMonth, dateLabel, emptyBudget, installment, money, monthLabel, monthSummary,
-  paymentKey, projectClosingCash, salaryChecklistMonth, todayMYT, validMonth,
+  active, addMonths, categoryMonth, dateLabel, emptyBudget, installment, installmentParts, money, monthLabel, monthSummary,
+  paymentKey, projectClosingCash, remainingInstallment, salaryChecklistMonth, todayMYT, validMonth,
 } from './budget.js'
 import { Editor, Modal, MonthField, SetPassword, SignIn, statuses } from './editors.jsx'
 import { incompleteConfig, loadBudget, saveBudget, supabase } from './storage.js'
@@ -21,6 +21,7 @@ import { OverviewInsights } from './OverviewInsights.jsx'
 import { CashProjectionNote, OpeningCashEditor, SpendingReview } from './Forecast.jsx'
 import { Simulator } from './Simulator.jsx'
 import { MonthlyTransfer } from './MonthlyTransfer.jsx'
+import { PaymentAllocation } from './PaymentAllocation.jsx'
 import './styles.css'
 
 const nav = [
@@ -150,13 +151,13 @@ function CommitmentBreakdown({ month, summary, close }) {
     <div className="editor">
       <dl className="transfer-breakdown">
         <div><dt>Originally due</dt><dd>{money(summary.scheduledCommitment)}</dd></div>
-        {summary.movedIn.map(entry => <div key={'in:' + paymentKey(entry.id, entry.dueMonth)}>
+        {summary.movedIn.map(entry => <div key={'in:' + paymentKey(entry.id, entry.dueMonth) + ':' + (entry.allocationIndex ?? 'balance')}>
           <dt>{entry.name}<small>{entry.status === 'paid'
             ? entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid' : 'Planned'} · Due {monthLabel(entry.dueMonth)}
             {entry.partial && ' · Carried from a partial payment'}</small></dt>
           <dd className="transfer-in">+{money(entry.amount)}</dd>
         </div>)}
-        {summary.movedOut.map(entry => <div key={'out:' + paymentKey(entry.id, entry.dueMonth)}>
+        {summary.movedOut.map(entry => <div key={'out:' + paymentKey(entry.id, entry.dueMonth) + ':' + (entry.allocationIndex ?? 'balance')}>
           <dt>{entry.name}<small>{entry.status === 'paid'
             ? (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paidMonth ?? entry.paymentMonth))
             : 'Planned for ' + monthLabel(entry.paymentMonth)}
@@ -289,18 +290,27 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             const carried = carriedByMonth.get(value).filter(payment => payment.id === item.id)
             const carriedTotal = carried.reduce((sum, payment) => sum + payment.amount, 0)
             const assigned = entry?.budgetMonth ?? entry?.paymentMonth ?? value
-            const ownAmount = assigned !== value ? 0 : entry?.partial && carriedBudgetMonth(data, entry.partial) !== value
-              ? entry.partial.paid : entry?.amount ?? 0
+            const ownParts = entry ? installmentParts(data, entry, value)
+              .filter(part => (part.budgetMonth ?? part.paymentMonth ?? value) === value) : []
+            const ownAmount = ownParts.reduce((sum, part) => sum + part.amount, 0)
             const shownAmount = carriedTotal ? ownAmount + carriedTotal : entry?.amount
+            const remaining = entry?.partial ? remainingInstallment(entry) : null
             const status = entry?.partial
-              ? { ...(entry.partial.settled ? statuses.paid : statuses.scheduled), label: entry.partial.settled ? 'Settled' : 'Partially paid' }
+              ? { ...(remaining === 0 ? statuses.paid : statuses.scheduled), label: remaining === 0 ? 'Settled' : 'Partially paid' }
               : entry && statuses[entry.status]
             const tone = carriedTotal
-              ? (carried.every(payment => payment.status === 'paid') && (!ownAmount || entry.partial || entry.status === 'paid') ? 'paid' : 'scheduled')
-              : entry?.partial ? (entry.partial.settled ? 'paid' : 'scheduled') : entry?.status
+              ? ([...carried, ...ownParts].every(payment => payment.status === 'paid') ? 'paid' : 'scheduled')
+              : entry?.partial ? (remaining === 0 ? 'paid' : 'scheduled') : entry?.status
             const StatusIcon = carriedTotal ? statuses[tone].icon : status?.icon
             const carryNote = carriedTotal ? money(carriedTotal) + ' carried in' : ''
-            const movement = entry?.partial
+            const pooled = entry?.partial?.allocations || carried.some(payment => payment.partial?.allocations)
+            const cellRemaining = pooled && carriedTotal
+              ? [...carried, ...ownParts].filter(part => part.status !== 'paid').reduce((sum, part) => sum + part.amount, 0)
+              : remaining
+            const movement = pooled
+              ? money((carriedTotal ? shownAmount : entry.amount) - cellRemaining) + ' paid'
+                + (cellRemaining ? ' · ' + money(cellRemaining) + ' remaining' : ' · Settled')
+              : entry?.partial
               ? money(entry.partial.paid) + ' paid · ' + money(entry.amount - entry.partial.paid)
                 + (entry.partial.settled ? (entry.partial.paidDate ? ' paid on ' + dateLabel(entry.partial.paidDate)
                   : ' paid in ' + monthLabel(entry.partial.paidMonth ?? entry.partial.month)) : ' carried to ' + monthLabel(entry.partial.month))
@@ -310,8 +320,7 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
             return <td key={value} className={value === month ? 'selected-col' : ''}>
               {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
                 aria-label={[item.name, monthLabel(value, 'long'), money(shownAmount), carryNote, status?.label, movement].filter(Boolean).join(', ')}
-                onClick={() => open(entry ? { type: 'payment', item, month: value }
-                  : { type: 'payment', item, month: carried[0].dueMonth })}>
+                onClick={() => open({ type: 'payment', item, month: entry ? value : carried[0].dueMonth, allocationMonth: value })}>
                 <span className="payment-amount"><StatusIcon size={14} strokeWidth={2.3} />{money(shownAmount)}</span>
                 {carryNote && <small>{carryNote}</small>}
                 {movement && <small>{movement}</small>}
@@ -637,7 +646,9 @@ function App() {
       summary={monthSummary(data, editor.month, today)} close={() => setEditor(null)} />}
     {editor?.type === 'opening-cash' && data && <OpeningCashEditor data={data} openingCash={data.openingCash}
       month={month} close={() => setEditor(null)} save={save} />}
-    {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown', 'opening-cash'].includes(editor.type) && snapshot && <Editor
+    {editor?.type === 'allocate-payment' && data && <PaymentAllocation key={editor.item.id + ':' + editor.month}
+      data={data} item={editor.item} month={editor.month} today={today} close={() => setEditor(null)} save={save} />}
+    {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown', 'opening-cash', 'allocate-payment'].includes(editor.type) && snapshot && <Editor
       key={identity + ':' + editor.type} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
       today={today} save={save} reload={refresh} open={setEditor} />}
     {notice && <div className="toast" role="status"><ShieldCheck size={18} /> {notice}</div>}
