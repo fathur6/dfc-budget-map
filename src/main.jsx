@@ -283,7 +283,8 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
           <th scope="row"><div className="commitment-row-label">
             {handle(item, index)}
             <button className="row-label" onClick={() => open({ type: 'commitment', item })} aria-label={'Edit ' + item.name}>
-            <span className="row-icon"><Icon size={16} /></span><span><strong>{item.name}</strong><small>{item.provisional ? 'Verify schedule' : item.category} · due {item.day}</small></span>
+            <span className="row-icon"><Icon size={16} /></span><span><strong>{item.name}</strong>
+              <small>{item.provisional ? 'Verify schedule' : item.category}{item.frequency === 'yearly' ? ' · Yearly' : ''} · due {item.day}</small></span>
           </button></div></th>
           {months.map(value => {
             const entry = installment(data, item, value, today)

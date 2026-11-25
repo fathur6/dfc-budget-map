@@ -18,7 +18,7 @@ export function spendingConversionPlan(data, item, today) {
   return { entries, start, available, amount, linked }
 }
 
-export function convertSpendingToCommitment(data, { itemId, start, amount, day, category }, today) {
+export function convertSpendingToCommitment(data, { itemId, start, amount, day, category, frequency = 'monthly' }, today) {
   const item = data.categories.find(entry => entry.id === itemId)
   if (!item) throw new Error('This spending item is no longer available.')
   const plan = spendingConversionPlan(data, item, today)
@@ -26,15 +26,17 @@ export function convertSpendingToCommitment(data, { itemId, start, amount, day, 
     throw new Error('Choose an eligible start month after the spending history.')
   }
   if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 999999999 || !Number.isInteger(day) || day < 1 || day > 31
-    || !commitmentCategories.includes(category)) throw new Error('Enter a valid monthly amount, due day and commitment category.')
+    || !commitmentCategories.includes(category)) throw new Error('Enter a valid amount, due day and commitment category.')
+  if (!['monthly', 'yearly'].includes(frequency)) throw new Error('Choose monthly or yearly billing.')
 
   const id = crypto.randomUUID()
-  const commitment = { id, name: item.name, category, start, end: item.end, amount, day, spendingSourceId: item.id }
+  const commitment = { id, name: item.name, category, start, end: item.end, amount, day, spendingSourceId: item.id,
+    ...(frequency === 'yearly' && { frequency }) }
   const spending = { ...data.spending }
   const payments = { ...data.payments }
   for (const entry of plan.entries) {
     if (entry.month < start) continue
-    if (entry.spent != null) payments[paymentKey(id, entry.month)] = { amount: entry.spent }
+    if (frequency === 'monthly' && entry.spent != null) payments[paymentKey(id, entry.month)] = { amount: entry.spent }
     delete spending[entry.key]
   }
   const categories = data.categories.flatMap(source => {

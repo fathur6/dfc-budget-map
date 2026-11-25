@@ -29,7 +29,7 @@ test('moves future amounts exactly once and preserves transferred and confirmed 
   const fields = { itemId: item.id, start: february, amount: 4300, day: 15, category: 'Subscriptions' }
   assert.equal(spendingConversionPlan(budget, item, today).start, february)
   assert.throws(() => convertSpendingToCommitment(budget, { ...fields, start: january }, today), /eligible start month/)
-  assert.throws(() => convertSpendingToCommitment(budget, { ...fields, day: 0 }, today), /valid monthly amount/)
+  assert.throws(() => convertSpendingToCommitment(budget, { ...fields, day: 0 }, today), /valid amount/)
 
   const updated = convertSpendingToCommitment(budget, fields, today)
   const [commitment] = updated.commitments
@@ -61,4 +61,26 @@ test('handles a spending item that starts in the future and has no history to re
   assert.deepEqual(updated.categories, [])
   assert.deepEqual(updated.spending, {})
   assert.equal(commitmentChecklist(updated, december, today)[0].amount, 2500)
+})
+
+test('replaces unconfirmed monthly amounts with the full yearly charge on renewal', () => {
+  const budget = emptyBudget()
+  const item = { id: 'annual', name: 'Yearly subscription', start: november, end: '', category: 'Subscriptions' }
+  budget.categories = [item]
+  budget.spending = {
+    [paymentKey(item.id, november)]: { spent: 5000, transferred: true },
+    [paymentKey(item.id, december)]: { spent: 0 },
+    [paymentKey(item.id, january)]: { spent: 5000 },
+  }
+  const updated = convertSpendingToCommitment(budget, {
+    itemId: item.id, start: december, amount: 10000, day: 25, category: 'Subscriptions', frequency: 'yearly',
+  }, today)
+
+  assert.equal(updated.commitments[0].frequency, 'yearly')
+  assert.deepEqual(updated.spending, { [paymentKey(item.id, november)]: { spent: 5000, transferred: true } })
+  assert.equal(monthSummary(updated, december, today).committed, 10000)
+  assert.equal(monthSummary(updated, january, today).committed, 0)
+  assert.equal(monthSummary(updated, '2027-12', today).committed, 10000)
+  assert.deepEqual(commitmentChecklist(updated, january, today), [])
+  assert.deepEqual(readBackup(JSON.stringify({ format: 'dfc-budget-map', version: 1, budget: updated })), updated)
 })

@@ -95,6 +95,10 @@ export function active(item, month) {
   return month >= item.start && (!item.end || month <= item.end)
 }
 
+function commitmentIsDue(item, month) {
+  return active(item, month) && (item.frequency !== 'yearly' || month.slice(5) === item.start.slice(5))
+}
+
 export function paymentKey(id, month) {
   return id + ':' + month
 }
@@ -102,6 +106,9 @@ export function paymentKey(id, month) {
 export function installment(data, commitment, month, today) {
   const override = data.payments[paymentKey(commitment.id, month)]
   if (!active(commitment, month) && !override?.oneOff) return null
+  // Explicit payment records can predate a change of billing frequency.
+  if (!commitmentIsDue(commitment, month) && !override?.oneOff
+    && !override?.status && !override?.partial && !override?.paymentMonth) return null
   const due = dueDate(month, override?.day ?? commitment.day)
   const actual = override?.paymentMonth || month
   const paid = override?.status === 'paid'
@@ -278,7 +285,8 @@ export function commitmentMonths(data, month, today) {
   const byId = new Map(data.commitments.map(item => [item.id, { item, months: new Set([month]) }]))
   if (includeArrears) {
     for (const { item, months } of byId.values()) {
-      for (let due = item.start; due < month && active(item, due); due = addMonths(due, 1)) months.add(due)
+      const interval = item.frequency === 'yearly' ? 12 : 1
+      for (let due = item.start; due < month && active(item, due); due = addMonths(due, interval)) months.add(due)
     }
   }
   for (const [key, payment] of Object.entries(data.payments)) {

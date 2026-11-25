@@ -68,6 +68,23 @@ test('supports payment overrides, due-day grace, one-off bills and provisional s
   assert.equal(installment(changed, electric, '2026-11', '2026-11-21').status, 'paid')
 })
 
+test('yearly commitments renew in their first month and keep explicit off-cycle payment records', () => {
+  const budget = emptyBudget()
+  const item = { id: 'yearly', name: 'Yearly subscription', category: 'Subscriptions', start: '2026-02',
+    end: '2028-02', amount: 12000, day: 31, frequency: 'yearly' }
+  budget.commitments = [item]
+  budget.payments['yearly:2026-03'] = { status: 'paid', amount: 800 }
+  budget.payments['yearly:2026-04'] = { amount: 800 }
+  assert.equal(installment(budget, item, '2026-03', today).status, 'paid')
+  assert.equal(installment(budget, item, '2026-04', today), null)
+  assert.equal(installment(budget, item, '2027-02', today).due, '2027-02-28')
+  assert.equal(installment(budget, item, '2028-02', today).due, '2028-02-29')
+  assert.equal(installment(budget, item, '2029-02', today), null)
+  assert.equal(monthSummary(budget, '2026-11', today).outstanding, 12000)
+  const projections = projectCommitment(budget, { start: '2027-01', duration: 3, amount: 0 }, '2026-01-01')
+  assert.deepEqual(projections.months.map(month => month.committed), [0, 12000, 0])
+})
+
 test('ignores legacy spending budgets and allows zero income', () => {
   const changed = structuredClone(data)
   changed.categories[0].planned = 900000

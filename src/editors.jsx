@@ -79,6 +79,22 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const converting = type === 'convert-spending'
   const conversion = item && (type === 'category' || converting) ? spendingConversionPlan(data, item, today) : null
   const [transferStart, setTransferStart] = useState(conversion?.start ?? '')
+  const [commitmentCategory, setCommitmentCategory] = useState(() =>
+    commitmentCategories.includes(item?.category) ? item.category : 'Other')
+  const [frequency, setFrequency] = useState(item?.frequency ?? 'monthly')
+  const showFrequency = commitmentCategory === 'Subscriptions' || item?.frequency === 'yearly'
+  const yearly = showFrequency && frequency === 'yearly'
+  const billingFrequency = yearly ? 'yearly' : 'monthly'
+  const commitmentCategoryField = <label className="field"><span>{converting ? 'Commitment category' : 'Category'}</span>
+    <select name="category" value={commitmentCategory} onChange={event => setCommitmentCategory(event.currentTarget.value)}>
+      {commitmentCategories.map(category => <option key={category}>{category}</option>)}
+    </select>
+  </label>
+  const frequencyField = showFrequency && <label className="field"><span>Billing frequency</span>
+    <select value={frequency} onChange={event => setFrequency(event.currentTarget.value)}>
+      <option value="monthly">Monthly</option><option value="yearly">Yearly</option>
+    </select>
+  </label>
   const linkedSpending = item?.spendingSourceId && data.categories.find(source => source.id === item.spendingSourceId)
   const [incomeRows, setIncomeRows] = useState(() => (type === 'income' ? data.incomeSourcesByMonth?.[month] ?? [] : [])
     .map((source, index) => ({ ...source, key: String(index) })))
@@ -91,7 +107,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     ? categoryMonth(data, item, targetMonth)?.spent : null
   const payment = data.payments[key]
   const entry = type === 'payment' ? installment(data, item, month, today) : null
-  const oneOff = type === 'payment' && (!active(item, month) || payment?.oneOff === true)
+  const oneOff = type === 'payment' && (!entry || payment?.oneOff === true)
   const [paymentDay, setPaymentDay] = useState(payment?.day ?? item?.day ?? 1)
   const [paymentStatus, setPaymentStatus] = useState(payment?.partial ? 'partial' : payment?.status ?? 'auto')
   const [carrySettled, setCarrySettled] = useState(Boolean(payment?.partial?.settled))
@@ -151,7 +167,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
       if (converting) {
         await save(convertSpendingToCommitment(data, {
           itemId: item.id, start: readMonth(get('start')), amount: readAmount(get('amount'), { positive: true }),
-          day: Number(get('day')), category: get('category'),
+          day: Number(get('day')), category: get('category'), frequency: billingFrequency,
         }, today))
         return
       }
@@ -205,6 +221,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           const common = { id: item?.id ?? crypto.randomUUID(), name: readName(get('name')), start, end }
           const record = type === 'commitment'
             ? { ...common, category: get('category'), provisional: form.has('provisional'), amount: readAmount(get('amount'), { positive: true }), day: Number(get('day')),
+              ...(yearly && { frequency: billingFrequency }),
               ...(item?.spendingSourceId && { spendingSourceId: item.spendingSourceId }) }
             : { ...common, ...(get('spendingCategory') && { category: get('spendingCategory') }) }
           if (type === 'category' && item) {
@@ -330,20 +347,21 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           </select>
         </label>}
         {type === 'commitment' ? <div className="form-grid">
-          <MoneyField label="Monthly amount" name="amount" value={item?.amount} />
-          <label className="field"><span>Category</span><select name="category" defaultValue={item?.category ?? 'Other'}>
-            {commitmentCategories.map(category => <option key={category}>{category}</option>)}
-          </select></label>
-          <label className="field"><span>Due day each month</span>
+          <MoneyField label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={item?.amount} />
+          {commitmentCategoryField}
+          {frequencyField}
+          <label className="field"><span>{yearly ? 'Due day in renewal month' : 'Due day each month'}</span>
             <input type="number" name="day" min="1" max="31" step="1" defaultValue={item?.day ?? 1} required />
           </label>
           <label className="check-field"><input type="checkbox" name="provisional" defaultChecked={item?.provisional} /> Schedule needs verification</label>
         </div> : null}
         <div className="form-grid">
-          <MonthField label="First month" name="start" value={item?.start ?? month} />
+          <MonthField label={type === 'commitment' && yearly ? 'First renewal month' : 'First month'} name="start" value={item?.start ?? month} />
           <MonthField label="Last month (optional)" name="end" value={item?.end} required={false} />
         </div>
-        {item && <p className="muted form-note">To record a monthly amount, open its cell.</p>}
+        {type === 'commitment' && yearly
+          ? <p className="muted form-note">Enter the full renewal charge. Saved amounts for individual renewals still apply.</p>
+          : item && <p className="muted form-note">To record a monthly amount, open its cell.</p>}
         {type === 'category' && item && <details className="spending-advanced">
           <summary>Advanced</summary>
           {conversion.linked ? <p className="muted form-note">Linked to {conversion.linked.name} in Commitment Map from {monthLabel(conversion.linked.start, 'long')}.</p>
@@ -355,21 +373,19 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
       {converting && <>
         <p className="form-note">Move <strong>{item.name}</strong> to Commitment Map for future months.</p>
         <div className="form-grid">
-          <MonthField label="Start month" name="start" value={transferStart} min={conversion.start} max={item.end || '2100-12'}
+          <MonthField label={yearly ? 'First renewal month' : 'Start month'} name="start" value={transferStart} min={conversion.start} max={item.end || '2100-12'}
             onChange={event => setTransferStart(event.currentTarget.value)} />
-          <MoneyField label="Monthly amount" name="amount" value={conversion.amount} />
-          <label className="field"><span>Due day each month</span>
+          <MoneyField key={billingFrequency} label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={yearly ? null : conversion.amount} />
+          <label className="field"><span>{yearly ? 'Due day in renewal month' : 'Due day each month'}</span>
             <input type="number" name="day" min="1" max="31" step="1" required /></label>
-          <label className="field"><span>Commitment category</span>
-            <select name="category" defaultValue={commitmentCategories.includes(item.category) ? item.category : 'Other'}>
-              {commitmentCategories.map(category => <option key={category}>{category}</option>)}
-            </select>
-          </label>
+          {commitmentCategoryField}
+          {frequencyField}
         </div>
         {validMonth(transferStart) && transferStart >= conversion.start && active(item, transferStart) && <div className="spending-conversion-preview">
           {transferStart > item.start && <p><strong>Monthly Spending</strong> keeps its history through {monthLabel(addMonths(transferStart, -1), 'long')}.</p>}
           <p><strong>Commitment Map</strong> starts in {monthLabel(transferStart, 'long')}{item.end ? ' and ends in ' + monthLabel(item.end, 'long') : ''}.</p>
-          <p>Saved amounts from the start month move as scheduled amounts. Months without an entry use the monthly amount.</p>
+          <p>{yearly ? `The full yearly amount is due each ${monthLabel(transferStart, 'long', false)}. It replaces future unconfirmed spending amounts.`
+            : 'Saved amounts from the start month move as scheduled amounts. Months without an entry use the monthly amount.'}</p>
         </div>}
       </>}
       {type === 'payment' && <>
