@@ -82,18 +82,26 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const [transferMode, setTransferMode] = useState(conversion?.currentAvailable ? 'current' : 'first')
   const [customMonth, setCustomMonth] = useState(conversion?.currentAvailable ? conversion.current : conversion?.first)
   const [transferDay, setTransferDay] = useState('')
+  const [renewalDate, setRenewalDate] = useState('')
   const transferStart = transferMode === 'custom' ? customMonth : conversion?.[transferMode]
   const transferInRange = converting && validMonth(transferStart) && transferStart >= item.start && transferStart <= conversion.latest
-  const historyMoves = transferInRange && conversion.entries.some(entry => entry.spent != null
-    && entry.month >= transferStart && entry.month <= conversion.latest
-    && isSpendingHistory(conversion, entry, today, conversion.linked?.day ?? Number(transferDay)))
-  const spendingStays = transferInRange && conversion.entries.some(entry => entry.spent != null && entry.month < transferStart)
   const [commitmentCategory, setCommitmentCategory] = useState(() =>
     commitmentCategories.includes(item?.category) ? item.category : 'Other')
   const [frequency, setFrequency] = useState(item?.frequency ?? 'monthly')
   const showFrequency = commitmentCategory === 'Subscriptions' || item?.frequency === 'yearly'
   const yearly = showFrequency && frequency === 'yearly'
   const billingFrequency = yearly ? 'yearly' : 'monthly'
+  const firstRenewal = type === 'commitment' && dueDate(item?.start ?? month, item?.day ?? 1)
+  const earliestRenewal = transferInRange && transferStart > conversion.current ? transferStart + '-01' : today
+  const latestRenewal = item?.end ? dueDate(item.end, 31) : '2100-12-31'
+  const renewalInRange = validDate(renewalDate) && renewalDate >= earliestRenewal && renewalDate <= latestRenewal
+  const renewalMonth = yearly && renewalInRange ? renewalDate.slice(0, 7) : undefined
+  const dueDay = conversion?.linked?.day ?? (yearly ? Number(renewalDate.slice(-2)) : Number(transferDay))
+  const history = transferInRange ? conversion.entries.filter(entry => entry.spent != null
+    && entry.month >= transferStart && entry.month <= conversion.latest
+    && isSpendingHistory(conversion, entry, today, dueDay, renewalMonth)) : []
+  const renewalRecorded = history.some(entry => entry.month === renewalMonth)
+  const spendingStays = transferInRange && conversion.entries.some(entry => entry.spent != null && entry.month < transferStart)
   const commitmentCategoryField = <label className="field"><span>{converting ? 'Commitment category' : 'Category'}</span>
     <select name="category" value={commitmentCategory} onChange={event => setCommitmentCategory(event.currentTarget.value)}>
       {commitmentCategories.map(category => <option key={category}>{category}</option>)}
@@ -165,11 +173,11 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     </Modal>
   }
 
-  if (entry?.status === 'recorded') {
+  if (entry?.status === 'recorded' || entry?.spendingTransferred) {
     return <Modal title={item.name} close={close}>
       <div className="editor">
         <p className="form-note">{monthLabel(month, 'long')} · <strong>{money(entry.amount)}</strong></p>
-        <p className="muted form-note">Moved from Monthly Spending.{entry.spendingTransferred && ' Spending transfer recorded.'}</p>
+        <p className="muted form-note">{entry.spendingTransferred ? 'Paid · From Monthly Spending' : 'Moved from Monthly Spending.'}</p>
         {recordAmountOption}
         <footer className="modal-actions"><div className="spacer" />
           <button type="button" className="button secondary" onClick={close}>Done</button>
@@ -190,7 +198,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
         await save(convertSpendingToCommitment(data, {
           itemId: item.id, start: readMonth(transferMode === 'custom' ? get('start') : transferStart),
           ...(!conversion.linked && { amount: readAmount(get('amount'), { positive: true }),
-            day: Number(get('day')), category: get('category'), frequency: billingFrequency }),
+            day: Number(get('day')), category: get('category'), frequency: billingFrequency, renewalDate: get('renewalDate') }),
         }, today))
         return
       }
@@ -226,7 +234,11 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           if (type === 'commitment') next.payments = removeEntries(next.payments, item.id)
           else next.spending = removeEntries(next.spending, item.id)
         } else {
-          const start = readMonth(get('start'))
+          const annual = type === 'commitment' && yearly
+          const renewal = get('renewalDate')
+          if (annual && !validDate(renewal)) throw new Error('Enter a valid first renewal date.')
+          const start = annual ? renewal.slice(0, 7) : readMonth(get('start'))
+          const day = annual ? (renewal === firstRenewal && item ? item.day : Number(renewal.slice(-2))) : Number(get('day'))
           const end = readMonth(get('end'), true)
           if (end && end < start) throw new Error('The end month must be on or after the start month.')
           if (type === 'category' && conversion?.linked && (!end || end >= conversion.linkedFrom)) {
@@ -243,7 +255,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           })) throw new Error('The schedule must include all months with recorded entries.')
           const common = { id: item?.id ?? crypto.randomUUID(), name: readName(get('name')), start, end }
           const record = type === 'commitment'
-            ? { ...common, category: get('category'), provisional: form.has('provisional'), amount: readAmount(get('amount'), { positive: true }), day: Number(get('day')),
+            ? { ...common, category: get('category'), provisional: form.has('provisional'), amount: readAmount(get('amount'), { positive: true }), day,
               ...(yearly && { frequency: billingFrequency }),
               ...(item?.spendingSourceId && { spendingSourceId: item.spendingSourceId, spendingSourceFrom: item.spendingSourceFrom ?? item.start }),
               ...(item?.scheduleFrom && { scheduleFrom: item.scheduleFrom }) }
@@ -374,13 +386,17 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           <MoneyField label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={item?.amount} />
           {commitmentCategoryField}
           {frequencyField}
-          <label className="field"><span>{yearly ? 'Due day in renewal month' : 'Due day each month'}</span>
+          {!yearly && <label className="field"><span>Due day each month</span>
             <input type="number" name="day" min="1" max="31" step="1" defaultValue={item?.day ?? 1} required />
-          </label>
+          </label>}
           <label className="check-field"><input type="checkbox" name="provisional" defaultChecked={item?.provisional} /> Schedule needs verification</label>
         </div> : null}
         <div className="form-grid">
-          <MonthField label={type === 'commitment' && yearly ? 'First renewal month' : 'First month'} name="start" value={item?.start ?? month} />
+          {type === 'commitment' && yearly
+            ? <label className="field"><span>First renewal date</span>
+              <input type="date" name="renewalDate" min="2000-01-01" max="2100-12-31" defaultValue={firstRenewal} required />
+            </label>
+            : <MonthField label="First month" name="start" value={item?.start ?? month} />}
           <MonthField label="Last month (optional)" name="end" value={item?.end} required={false} />
         </div>
         {type === 'commitment' && yearly
@@ -396,7 +412,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
       </>}
       {converting && <>
         <p className="form-note">Move <strong>{item.name}</strong> to Commitment Map.</p>
-        <div className="form-grid">
+        <div className={transferMode === 'custom' ? 'form-grid' : undefined}>
           <label className="field"><span>Transfer from</span>
             <select value={transferMode} onChange={event => setTransferMode(event.currentTarget.value)}>
               <option value="first">From first recorded month · {monthLabel(conversion.first)}</option>
@@ -408,18 +424,26 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
             min={item.start} max={conversion.latest} onInput={event => setCustomMonth(event.currentTarget.value)} />}
         </div>
         {!conversion.linked && <div className="form-grid">
-          <MoneyField key={billingFrequency} label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={yearly ? null : conversion.amount} />
-          <label className="field"><span>{yearly ? 'Due day in renewal month' : 'Due day each month'}</span>
-            <input type="number" name="day" min="1" max="31" step="1" required
-              value={transferDay} onChange={event => setTransferDay(event.currentTarget.value)} /></label>
-          {commitmentCategoryField}
           {frequencyField}
+          {commitmentCategoryField}
+          <MoneyField key={billingFrequency} label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={yearly ? null : conversion.amount} />
+          {yearly ? <label className="field"><span>Next renewal date</span>
+            <input type="date" name="renewalDate" min={earliestRenewal} max={latestRenewal} defaultValue={renewalDate} required
+              onInput={event => setRenewalDate(event.currentTarget.value)} />
+          </label> : <label className="field"><span>Due day each month</span>
+            <input type="number" name="day" min="1" max="31" step="1" required
+              value={transferDay} onChange={event => setTransferDay(event.currentTarget.value)} /></label>}
         </div>}
         {transferInRange && <div className="spending-conversion-preview">
           <p><strong>Monthly Spending</strong> {spendingStays ? `keeps entries before ${monthLabel(transferStart, 'long')}.` : 'removes this item.'}</p>
           <p><strong>Commitment Map</strong> {conversion.linked ? 'adds entries to the existing commitment from' : 'takes over from'} {monthLabel(transferStart, 'long')}.</p>
-          {historyMoves && <p>Past, transferred and confirmed amounts keep their original month as recorded spending.</p>}
-          {!conversion.linked && yearly && <p>The full yearly charge is due each {monthLabel(transferStart, 'long', false)}. It replaces unconfirmed future spending estimates.</p>}
+          {history.some(entry => entry.transferred) && <p>Transferred amounts become Paid in their original month.</p>}
+          {history.some(entry => !entry.transferred) && <p>Other past and confirmed amounts stay in their original month as recorded spending.</p>}
+          {!conversion.linked && yearly && <p>{renewalInRange
+            ? <>Renews yearly from <strong>{dateLabel(renewalDate)}</strong>.</>
+            : 'Choose the date of the next annual charge.'}</p>}
+          {renewalRecorded && <p>The recorded amount for {monthLabel(renewalMonth)} is kept. The new charge applies from the following renewal.</p>}
+          {!conversion.linked && yearly && <p>The annual schedule replaces unconfirmed future spending estimates.</p>}
         </div>}
       </>}
       {type === 'payment' && <>

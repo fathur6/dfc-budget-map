@@ -68,7 +68,9 @@ export function readBackup(text) {
     || !validateEntries(budget.payments, budget.commitments, (item, month) =>
       (item.status === undefined || ['paid', 'missed', 'recorded'].includes(item.status))
       && (item.status !== 'recorded' || (item.oneOff === true && item.paymentMonth === undefined))
-      && (item.spendingTransferred === undefined || (item.spendingTransferred === true && item.status === 'recorded' && item.amount > 0))
+      && (item.spendingTransferred === undefined || (item.spendingTransferred === true && item.oneOff === true
+        && ['recorded', 'paid'].includes(item.status) && item.amount > 0
+        && item.paymentMonth === undefined && item.paidDate === undefined && item.checklistMonth === undefined))
       && (item.paymentMonth === undefined || (validMonth(item.paymentMonth) && item.status !== 'missed'))
       && (item.checklistMonth === undefined || (validMonth(item.checklistMonth) && item.status === 'paid'))
       && (item.paidDate === undefined || (item.status === 'paid' && validDate(item.paidDate)

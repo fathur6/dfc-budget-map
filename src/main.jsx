@@ -326,11 +326,13 @@ function CommitmentMap({ data, months, month, current, today, summaries, chooseM
                 ? (entry.budgetMonth === value ? 'On time · ' : '')
                   + (entry.paidDate ? 'Paid on ' + dateLabel(entry.paidDate) : 'Paid in ' + monthLabel(entry.paymentMonth))
                   + (entry.budgetMonth && entry.budgetMonth !== value ? ' · ' + monthLabel(entry.budgetMonth) + ' budget' : '')
-                : entry?.status === 'recorded' ? (entry.spendingTransferred ? 'Transfer recorded' : 'From Monthly Spending')
+                : entry?.spendingTransferred ? 'Paid · From Monthly Spending'
+                : entry?.status === 'recorded' ? 'From Monthly Spending'
                 : movedBalance ? (movedBalance.autoCarried ? 'Carried to ' : 'Planned for ') + monthLabel(assigned) : ''
             return <td key={value} className={value === month ? 'selected-col' : ''}>
               {entry || carriedTotal ? <button className={'tile ' + tone + (movement || carryNote ? ' moved-payment' : '')}
-                aria-label={[item.name, monthLabel(value, 'long'), money(shownAmount), carryNote, carriedTotal ? statuses[tone].label : status?.label, movement].filter(Boolean).join(', ')}
+                aria-label={[item.name, monthLabel(value, 'long'), money(shownAmount), carryNote,
+                  carriedTotal ? statuses[tone].label : !entry?.spendingTransferred && status?.label, movement].filter(Boolean).join(', ')}
                 onClick={() => open({ type: 'payment', item, month: entry ? value : carried[0].dueMonth, allocationMonth: carriedTotal ? value : assigned })}>
                 <span className="payment-amount"><StatusIcon size={14} strokeWidth={2.3} />{money(shownAmount)}</span>
                 {carryNote && <small>{carryNote}</small>}

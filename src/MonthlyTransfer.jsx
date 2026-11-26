@@ -198,10 +198,12 @@ export function MonthlyTransfer({ data, month, today, summary, save, open }) {
           <div className="transfer-row-description">
             <button type="button" className="transfer-row-name"
               onClick={() => open({ type: 'payment', item: row.item, month: row.dueMonth, allocationMonth: month })} disabled={saving}>{row.item.name}</button>
-            <small>{row.portion === 'remainder' ? 'Carried balance · ' : isArrears(row) ? 'Overdue · ' : row.portion === 'partial' ? 'Partial payment · ' : ''}
+            <small>{row.spendingTransferred ? 'From Monthly Spending' : <>
+              {row.portion === 'remainder' ? 'Carried balance · ' : isArrears(row) ? 'Overdue · ' : row.portion === 'partial' ? 'Partial payment · ' : ''}
               Due {Number(row.due.slice(-2))} {monthLabel(row.dueMonth)}
               {row.paidDate ? ' · Paid on ' + dateLabel(row.paidDate)
-                : row.paidMonth && row.paidMonth !== month && ' · Paid in ' + monthLabel(row.paidMonth)}</small>
+                : row.paidMonth && row.paidMonth !== month && ' · Paid in ' + monthLabel(row.paidMonth)}
+            </>}</small>
             {row.remaining > 0 && row.remaining < row.amount && <small>
               {money(row.amount - row.remaining)} paid · {money(row.remaining)} remaining</small>}
             {firstPending.get(row.item.id) === row.key && row.dueMonth <= month && <button type="button" className="transfer-allocation-link" disabled={saving}

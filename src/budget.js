@@ -112,7 +112,9 @@ export function installment(data, commitment, month, today) {
     && !override?.status && !override?.partial && !override?.paymentMonth) return null
   const due = dueDate(month, override?.day ?? commitment.day)
   const actual = override?.paymentMonth || month
-  const paid = override?.status === 'paid'
+  const recorded = override?.status === 'recorded'
+  const spendingTransferred = override?.spendingTransferred === true
+  const paid = override?.status === 'paid' || (recorded && spendingTransferred)
   const budgetMonth = paid
     ? paymentBudgetMonth(data, actual, override.checklistMonth ?? month, override.paidDate, Boolean(override.checklistMonth))
     : actual
@@ -123,8 +125,8 @@ export function installment(data, commitment, month, today) {
     ...(override?.paymentMonth && { paymentMonth: override.paymentMonth }),
     ...(override?.paidDate && { paidDate: override.paidDate }),
     ...(budgetMonth !== actual && { budgetMonth }),
-    ...(override?.spendingTransferred && { spendingTransferred: true }),
-    status: override?.status === 'recorded' ? 'recorded' : paid ? 'paid'
+    ...(spendingTransferred && { spendingTransferred: true }),
+    status: paid ? 'paid' : recorded ? 'recorded'
       : override?.status === 'missed' || (!commitment.provisional && due < today) ? 'missed' : 'scheduled',
   }
 }

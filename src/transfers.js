@@ -30,8 +30,9 @@ export function commitmentChecklist(data, month, today) {
         const planned = paid ? data.payments[key]?.checklistMonth ?? (actual < dueMonth ? dueMonth : actual) : target
         if (planned === month && entry.amount > 0) {
           rows.push({ ...row, ...(dueMonth < month && { portion: 'remainder' }),
-            status: !paid && dueMonth < month ? 'scheduled' : entry.status, amount: entry.amount, paidMonth: paid ? actual : null,
-            paidDate: entry.paidDate })
+            status: !paid && dueMonth < month ? 'scheduled' : entry.status, amount: entry.amount,
+            paidMonth: paid && !entry.spendingTransferred ? actual : null, paidDate: entry.paidDate,
+            ...(entry.spendingTransferred && { spendingTransferred: true }) })
         }
       }
     }
