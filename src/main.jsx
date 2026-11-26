@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Activity, ArrowDownLeft, ArrowRight, CalendarDays, CarFront, Check, ChevronLeft,
-  ChevronRight, CircleHelp, CreditCard, Database, Download, FileUp, FlaskConical, GripVertical, Grid2X2, House, KeyRound, Layers3, LogIn,
+  ChevronRight, CircleHelp, CreditCard, Database, Download, ExternalLink, FileUp, FlaskConical, GripVertical, Grid2X2, HeartHandshake, House, KeyRound, Layers3, LogIn,
   ListChecks, LogOut, Pencil, Plus, ShieldCheck, Wallet, Zap,
 } from 'lucide-react'
 import '@fontsource-variable/geist'
@@ -29,6 +29,9 @@ const nav = [
   ['spending', 'Monthly spending', Wallet], ['simulator', 'Simulator', FlaskConical],
 ]
 const transferPage = ['monthly-transfer', 'Monthly Transfer', ListChecks]
+const supportCurrencies = [
+  ['MYR', 'my'], ['USD', 'us'], ['SGD', 'sg'], ['IDR', 'id'], ['THB', 'th'],
+]
 
 function sectionFromHash() {
   const [id] = window.location.hash.slice(1).split('/')
@@ -543,7 +546,12 @@ function App() {
           aria-current={section === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={18} />{label}</button>)}
       </nav>
       <div className="sidebar-bottom">
-        <button className="help" onClick={() => setEditor({ type: 'help' })}><CircleHelp size={17} /> How it works</button>
+        <div className="sidebar-actions">
+          <button className="help" onClick={() => setEditor({ type: 'help' })}><CircleHelp size={17} aria-hidden="true" /> How it works</button>
+          <button className="help support-button" onClick={() => setEditor({ type: 'support' })}>
+            <HeartHandshake size={17} aria-hidden="true" /> Support development
+          </button>
+        </div>
         <span className="sidebar-meta"><span className="live-dot" /> MYR <span>·</span> Malaysia time</span>
         <span className="app-version">{__APP_VERSION_LABEL__}</span>
       </div>
@@ -646,6 +654,30 @@ function App() {
         <p>Browser budgets stay on this device. Signing in opens a separate Supabase budget.</p>
       </div>
     </Modal>}
+    {editor?.type === 'support' && <Modal title="Support development" close={() => setEditor(null)}>
+      <div className="editor support-dialog">
+        <p className="form-note">Voluntary contributions help maintain DFC Budget Map and fund new features.</p>
+        <div className="support-payment">
+          <img src="/wise-support-qr.png" width="148" height="148" alt="QR code for the Wise payment link" />
+          <div className="support-recipient">
+            <div><p className="muted">Wisetag</p><strong>@fathurrahmanl</strong></div>
+            <a className="button primary" href="https://wise.com/pay/me/fathurrahmanl" target="_blank" rel="noopener noreferrer">
+              Open in Wise <ExternalLink size={15} aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+        <div className="support-currency-options">
+          <p className="muted form-note">This Wisetag link requires a Wise account. Check which currencies are available for your location on Wise.</p>
+          <ul className="support-currencies" role="list" aria-label="Currencies to check on Wise">
+            {supportCurrencies.map(([currency, country]) => <li key={currency}>
+              <img src={`/icons/flags/${country}.png`} alt="" width="22" height="14" />
+              {currency}
+            </li>)}
+          </ul>
+        </div>
+        <p className="muted form-note">Bank transfer without a Wise account requires a separate payment request from the recipient.</p>
+      </div>
+    </Modal>}
     {editor?.type === 'month' && <Modal title="Choose a month" close={() => setEditor(null)}>
       <form className="editor" onSubmit={event => {
         event.preventDefault()
@@ -664,7 +696,7 @@ function App() {
       month={month} close={() => setEditor(null)} save={save} />}
     {editor?.type === 'allocate-payment' && data && <PaymentAllocation key={editor.item.id + ':' + editor.month}
       data={data} item={editor.item} month={editor.month} today={today} initialAmount={editor.initialAmount} close={() => setEditor(null)} save={save} />}
-    {editor && !['sign-in', 'password', 'help', 'month', 'commitment-breakdown', 'opening-cash', 'allocate-payment'].includes(editor.type) && snapshot && <Editor
+    {editor && !['sign-in', 'password', 'help', 'support', 'month', 'commitment-breakdown', 'opening-cash', 'allocate-payment'].includes(editor.type) && snapshot && <Editor
       key={identity + ':' + editor.type} editor={editor} close={() => setEditor(null)} snapshot={snapshot} month={editor.month ?? month}
       today={today} save={save} reload={refresh} open={setEditor} />}
     {notice && <div className="toast" role="status"><ShieldCheck size={18} /> {notice}</div>}

@@ -18,7 +18,7 @@ Vercel guides you through creating your copy and connecting Supabase. Then follo
 
 ## Release version
 
-The sidebar takes the major version and `buildNumber` from `package.json`. With major version 2, builds 18, 19 and 20 display as `v2.1.8`, `v2.1.9` and `v2.2.0`. Increment `buildNumber` for each new build. If the package version changes, update the package lock as well.
+The sidebar uses the major and minor numbers from `version` in `package.json`. Its patch number is `buildNumber - versionStartBuild`, so Build 22 displays `v3.0.0 (Build 22)` and Build 23 displays `v3.0.1 (Build 23)`. Increment `buildNumber` for each release and keep the package version and lockfile in sync. For a new major or minor series, set `versionStartBuild` to its first build number.
 
 ## Run locally
 
@@ -106,3 +106,5 @@ The **Supabase keep-alive** workflow runs a real read-only Data API query at 04:
 - This is best-effort. Supabase may still pause a Free project. **Pro** is Supabase's official option to remove inactivity pausing. Keep separate budget backups using **Data → Export backup**. The health check provides no backup or restore capability.
 
 Visual reference: [Finance Pulse](https://github.com/fathur6/loan-budget-app).
+
+Currency flag artwork from [Flagpedia](https://flagpedia.net/download/api).

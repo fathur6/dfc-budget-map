@@ -46,6 +46,8 @@ h1, h2 { letter-spacing: -.045em; }
 .sidebar nav button:hover, .help:hover { background: var(--raised); color: white; }
 .sidebar nav button.active { color: var(--green); background: #172b25; border-color: #274939; }
 .sidebar-bottom { display: grid; gap: 14px; margin-top: auto; }
+.sidebar-actions { display: grid; gap: 3px; }
+.support-button svg { color: var(--green); }
 .app-version { color: var(--muted); font: 10px var(--mono); padding-inline: 7px; white-space: nowrap; }
 .sidebar-meta { border-top: 1px solid var(--line); color: var(--dim); font: 10px var(--mono); padding: 16px 7px 2px; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .live-dot { width: 7px; height: 7px; border-radius: 100%; display: inline-block; flex: none; background: var(--green); box-shadow: 0 0 10px #42e7ad69; }
@@ -313,6 +315,19 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .spacer { flex: 1; }
 .muted { color: var(--muted); }
 .form-note, .help-copy { font-size: 13px; line-height: 1.55; }
+.support-dialog { gap: 14px; }
+.support-payment {
+  display: grid; grid-template-columns: 148px minmax(0, 1fr); align-items: center; gap: 16px;
+  background: var(--canvas); border: 1px solid var(--line); border-radius: 9px; padding: 13px;
+}
+.support-payment img { display: block; max-width: 100%; height: auto; border-radius: 6px; image-rendering: pixelated; }
+.support-recipient { display: grid; justify-items: start; gap: 12px; }
+.support-recipient p { font-size: 12px; margin-bottom: 4px; }
+.support-recipient strong { font: 600 14px var(--mono); overflow-wrap: anywhere; }
+.support-currency-options { display: grid; gap: 8px; }
+.support-currencies { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.support-currencies li { display: flex; align-items: center; gap: 6px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 5px; color: #dbe5ef; font: 11px var(--mono); }
+.support-currencies img { display: block; object-fit: contain; }
 .income-sources, .income-source { min-width: 0; margin: 0; }
 .income-sources { display: grid; gap: 10px; border: 0; border-top: 1px solid var(--line); padding: 8px 0 0; }
 .income-sources > legend { padding-right: 8px; font-size: 13px; font-weight: 650; }
@@ -348,17 +363,15 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 }
 @media (max-width: 900px) {
   .shell { display: block; }
-  .sidebar { position: relative; height: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .sidebar nav { display: flex; margin-top: 0; gap: 4px; }
+  .sidebar { position: relative; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .sidebar nav { display: flex; order: 3; width: 100%; overflow-x: auto; margin-top: 0; gap: 4px; padding: 2px; }
   .sidebar nav button, .help { padding: 7px; gap: 5px; }
   .sidebar-meta { display: none; }
   .app-version { padding-inline: 0; }
-  .sidebar-bottom { margin-top: 0; }
+  .sidebar-bottom { gap: 5px; margin-top: 0; }
   .topbar { min-height: 52px; }
 }
 @media (max-width: 690px) {
-  .sidebar { flex-wrap: wrap; }
-  .sidebar nav { order: 3; width: 100%; overflow-x: auto; padding: 2px; }
   .sidebar nav button { font-size: 11px; }
   .sidebar nav svg { width: 14px; }
   .content, .topbar { padding-left: 14px; padding-right: 14px; }
@@ -379,6 +392,10 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
   .spending-review, .cash-projection-note { margin-inline: 13px; }
 }
 @media (max-width: 380px) {
+  .sidebar { padding-inline: 12px; }
+  .sidebar-actions button { font-size: 11px; padding-inline: 5px; }
+  .support-payment { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .support-recipient { justify-items: center; text-align: center; }
   .this-month { display: none; }
   .breadcrumb { font-size: 11px; }
   .mode { padding-inline: 5px; gap: 4px; }
