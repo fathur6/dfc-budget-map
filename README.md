@@ -1,20 +1,20 @@
 # DFC Budget Map
 
-Monthly cash-flow planning in MYR with a game-style commitment board. The board shows one prior month and four months ahead of the selected month. Each cell opens a payment editor with a month-specific amount and status. Use a last month for fixed-term instalments, or the same first and last month for a one-off commitment. Due dates and the current month follow Malaysia time.
+Plan monthly cash flow in MYR, track payments and spending, and see what a new commitment would do to your budget. Due dates follow Malaysia time.
 
-## Deploy your own copy
+## Start here
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ffathur6%2Fdfc-budget-map)
+| What you want to do | Where to start |
+| --- | --- |
+| Explore the app | [Try the demo](https://dfc-budget-map.vercel.app/#overview) with a fictional budget. No account needed. |
+| Keep a budget in one browser | Open the app and choose **Start fresh**. Save a copy with **Data → Export backup**. |
+| Sync a private budget across devices | [Set up your own copy](docs/getting-started.md#deploy-your-own-copy) using GitHub, Vercel and Supabase. |
 
-You can set this up in your browser using your own GitHub, Vercel and Supabase accounts.
+### Deploy with Vercel
 
-1. **Deploy the app.** Click **Deploy to Vercel**, sign in, and follow the prompts to create a repository and deploy the app. Copy the production URL from the Vercel project dashboard.
-2. **Connect Supabase.** Install [Supabase from the Vercel Marketplace](https://vercel.com/integrations/supabase). Create a Supabase project and connect it to your new Vercel project. The integration supplies the public connection settings automatically. If you prefer a project created directly in Supabase, follow [Vercel and Supabase](#vercel-and-supabase) below.
-3. **Initialize the database.** In Supabase, open **SQL Editor → New query**. Copy the full contents of the [budget setup SQL](supabase/migrations/20261113000100_budget_workspaces.sql), paste into the editor, and click **Run** once on the new project.
-4. **Set up private sign-in.** In Supabase **Authentication**, disable public sign-ups and set the **Site URL** under **URL Configuration** to the production URL from step 1. Under **Users**, use **Add user** to create your own account. For password sign-in, set a strong password and confirm your own email when creating the account.
-5. **Open your app.** In Vercel, go to **Deployments**, redeploy to pick up the synced settings, then open the production URL. Choose **Sign in → Use password** or request an email sign-in link. Save a small test entry and refresh to confirm cloud storage works.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ffathur6%2Fdfc-budget-map&project-name=dfc-budget-map&repository-name=dfc-budget-map&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22supabase%22%2C%22productSlug%22%3A%22supabase%22%7D%5D)
 
-The Vercel button deploys the frontend. Database initialization and the first private account are one-time dashboard steps. Each installation uses its own Supabase project. Supabase service-role keys and database passwords belong in server-side systems only. The [keep-alive](#optional-supabase-keep-alive) is optional.
+Vercel guides you through creating your copy and connecting Supabase. Then follow the [Getting Started guide](docs/getting-started.md#2-prepare-your-budget-database) to prepare the database, create your private sign-in, and save your first budget. [Already have a Supabase project?](docs/getting-started.md#connect-an-existing-supabase-project)
 
 ## Release version
 
@@ -33,7 +33,7 @@ The sample budget is fictional. **Start fresh** opens a blank browser budget. **
 
 ## Install on iPhone
 
-Open the production app in Safari, then use **Share → Add to Home Screen**. Leave **Open as Web App** on if the option appears. In a browser where you are already signed in, use **Data → Set sign-in password**. Open **Budget Map** from the Home Screen and sign in with the same email and that password. Supabase sync needs an internet connection.
+See [Add Budget Map to your phone](docs/getting-started.md#add-budget-map-to-your-phone) for iPhone and Android.
 
 ## How projections work
 
@@ -50,10 +50,7 @@ Open the production app in Safari, then use **Share → Add to Home Screen**. Le
 
 ## Vercel and Supabase
 
-1. Create a dedicated Supabase project and apply the budget workspace migration in [supabase/migrations](supabase/migrations) using the SQL Editor or Supabase CLI.
-2. Create the intended sign-in user in Supabase Authentication and disable public sign-ups. Set the Supabase Auth Site URL to the production app. The app emails sign-in links to pre-created users and supports password sign-in for the installed app. Configure SMTP when the built-in mail service cannot deliver to the intended address.
-3. Import this repository into Vercel as a Vite project. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel. Use the project's publishable key or legacy anon key. Keep secret and service-role keys out of the browser bundle.
-4. Deploy, sign in, and import the browser backup if migrating an existing budget. Verify the first save and refresh in the signed-in workspace.
+Follow the [guided deployment](docs/getting-started.md#deploy-your-own-copy) or [connect an existing Supabase project](docs/getting-started.md#connect-an-existing-supabase-project).
 
 The budget migration enables owner-scoped [row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security) and denies anonymous access to the budget table. Cloud saves check a workspace revision to avoid silently overwriting concurrent changes.
 
