@@ -58,11 +58,7 @@ The budget migration enables owner-scoped [row-level security](https://supabase.
 
 Monthly insights show the result before loan proceeds, commitments moved to later months, and upcoming shortfalls based on the entered figures. Budget Map calculates and displays these facts with or without DeepSeek.
 
-1. Open the Vercel project's **Settings → Environment Variables**. Add `DEEPSEEK_API_KEY` as a secret for Production and redeploy. Keep the key server-side.
-2. Sign in to Budget Map and open **Overview → Explain this month → Try with demo data** to try the connection with a fictional example.
-3. Choose **Explain my month** to let DeepSeek prioritize your selected month's insights. Only predefined patterns are sent to DeepSeek. Exact amounts, dates, item names and notes stay in Budget Map.
-
-The feature uses DeepSeek's usage-billed Flash API. The budget and monthly summary work without an API key.
+Follow [Enable DeepSeek insights](docs/getting-started.md#enable-deepseek-insights) to create your own API key, save it privately in Vercel and test it with a fictional month. The feature uses DeepSeek's usage-billed Flash API.
 
 ## Optional Supabase keep-alive
 

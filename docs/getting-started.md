@@ -34,6 +34,17 @@ You can do all of this in a browser. GitHub keeps your copy of the app, Vercel h
 4. Open **Monthly Transfer** to check off commitment payments and spending transfers after completing them.
 5. Use **Data → Export backup** to save a copy. If you already have a browser budget, export it while signed out and import it after signing in to your new app. **Import budget** replaces the budget in the workspace currently open.
 
+## Enable DeepSeek insights
+
+DeepSeek is optional. After you set up your sign-in, you can connect your own DeepSeek account to highlight what to review in each month's budget.
+
+1. Sign in to the DeepSeek API platform and create an API key for Budget Map. Usage, including demo requests, is billed to your own DeepSeek account. Check your API balance before testing. [Create a DeepSeek API key](https://platform.deepseek.com/api_keys) · [DeepSeek API pricing](https://api-docs.deepseek.com/quick_start/pricing/)
+2. Open your Budget Map project in **Vercel → Settings → Environment Variables → Add Environment Variable**. Select **Secret** (or **Sensitive**), enter `DEEPSEEK_API_KEY` in **Key**, paste your own API key in **Value**, select **Production**, and save. Keep the key in Vercel's secret setting. GitHub only needs the setting name, and browser variables prefixed with `VITE_` are public. [Vercel environment variable settings](https://vercel.com/academy/vercel-foundations/vercel-settings#environment-variables)
+3. In **Vercel → Deployments**, redeploy your latest production deployment so it picks up the setting. [Vercel redeploy steps](https://vercel.com/docs/deployments/managing-deployments#redeploy-a-project)
+4. Open your production app, sign in, and choose **Overview → Explain this month → Try with demo data**. Look for **Prioritized by DeepSeek** above the result. Then use **Back to my month → Explain this month → Explain my month** to review your own month.
+
+Budget Map sends DeepSeek a small set of predefined budget patterns. Exact amounts, dates, names and notes stay in Budget Map.
+
 ## Add Budget Map to your phone
 
 Open your production address on your phone. On **iPhone**, use Safari's **Share → Add to Home Screen** and enable **Open as Web App** if shown. On **Android**, open Chrome's menu and select **Install and create shortcut** or **Install app** when available. Open the new icon and use the same account if prompted to sign in. [Apple guide](https://support.apple.com/guide/iphone/iphea86e5236/ios) · [Chrome guide](https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DAndroid)
@@ -60,5 +71,4 @@ Keep your database password, secret key and service-role key out of these fields
 | An email sign-in link never arrives | Use the password from setup. To use email links, configure your project's mail provider. [Supabase email delivery settings](https://supabase.com/docs/guides/auth/auth-smtp) |
 | The app can't load or save the budget | Make sure the budget setup SQL ran in the same Supabase project connected to Vercel and that the project is active. |
 | The budget is blank after signing in | The browser and cloud budgets are separate. Export the browser budget while signed out, then sign in and import the file. |
-
-Budgeting works without DeepSeek. For optional AI summaries, see [DeepSeek setup](../README.md#optional-deepseek-insights).
+| DeepSeek is disabled or unavailable | Check that `DEEPSEEK_API_KEY` is set for **Production**, redeploy if you added or changed it, and check that the DeepSeek key and API balance are active. |
