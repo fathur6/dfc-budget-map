@@ -27,8 +27,8 @@ jobs:
         run: |
           docker buildx build --load --tag dfc-budget-map:smoke .
           container=$(docker run --detach --rm --publish 127.0.0.1:8080:8080 dfc-budget-map:smoke)
-          trap 'docker stop "$container" >/dev/null' EXIT
-          page=$(curl --fail --silent --show-error --retry 8 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/)
+          trap 'if [[ $? -ne 0 ]]; then docker logs "$container"; fi; docker stop "$container" >/dev/null' EXIT
+          page=$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 1 --max-time 3 http://127.0.0.1:8080/)
           printf '%s\n' "$page" | grep -F '<title>DFC Budget Map</title>'
           asset=$(printf '%s\n' "$page" | sed -n 's/.*<script type="module"[^>]*src="\([^"]*\)".*/\1/p')
           test -n "$asset"
