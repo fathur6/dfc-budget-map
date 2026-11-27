@@ -4,6 +4,20 @@ Open the [demo](https://dfc-budget-map.vercel.app/#overview) to try the app with
 
 If you prefer help from a coding agent, [copy the AI agent setup prompt](ai-agent-setup.md#copy-this-first) to run the app locally or set up your own hosted copy.
 
+## Run with Docker
+
+With Docker running, open a terminal and run this command. Docker downloads the app from [GitHub Packages](https://github.com/fathur6/dfc-budget-map/pkgs/container/dfc-budget-map) the first time.
+
+```sh
+docker run --rm -p 127.0.0.1:8080:8080 ghcr.io/fathur6/dfc-budget-map:latest
+```
+
+Open [http://localhost:8080](http://localhost:8080). Try the demo or choose **Start fresh** to create a budget. The image supports Intel and AMD 64-bit computers and ARM64 computers such as Apple silicon Macs.
+
+Your budget is saved in the browser. Press **Ctrl+C** to stop the app, and use the same browser and address when you start it again. Use **Data → Export backup** before switching browsers or ports. To update the app, stop it, run `docker pull ghcr.io/fathur6/dfc-budget-map:latest`, then run the start command again.
+
+This Docker image works in browser-only mode. For Supabase sync and optional DeepSeek insights, follow the hosted setup below.
+
 ## Deploy your own copy
 
 You can do all of this in a browser. GitHub keeps your copy of the app, Vercel hosts it at your own web address, and Supabase stores your budget and sign-in.

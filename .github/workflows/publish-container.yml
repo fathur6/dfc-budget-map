@@ -1,0 +1,53 @@
+name: Publish Docker image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-budget-map-container
+
+jobs:
+  publish:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Build and smoke-test the image
+        run: |
+          docker buildx build --load --tag dfc-budget-map:smoke .
+          container=$(docker run --detach --rm --publish 127.0.0.1:8080:8080 dfc-budget-map:smoke)
+          trap 'docker stop "$container" >/dev/null' EXIT
+          page=$(curl --fail --silent --show-error --retry 8 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/)
+          printf '%s\n' "$page" | grep -F '<title>DFC Budget Map</title>'
+          asset=$(printf '%s\n' "$page" | sed -n 's/.*<script type="module"[^>]*src="\([^"]*\)".*/\1/p')
+          test -n "$asset"
+          curl --fail --silent --show-error "http://127.0.0.1:8080$asset" --output /dev/null
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the versioned image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          version=$(jq -er '.version' package.json)
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.description=DFC Budget Map for a local browser budget" \
+            --label "org.opencontainers.image.version=$version" \
+            --tag "$image:v$version" --tag "$image:latest" --push .
+          docker buildx imagetools inspect "$image:v$version"
