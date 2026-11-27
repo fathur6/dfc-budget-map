@@ -16,6 +16,33 @@ Plan monthly cash flow in MYR, track payments and spending, and see what a new c
 
 Vercel guides you through creating your copy and connecting Supabase. Then follow the [Getting Started guide](docs/getting-started.md#2-prepare-your-budget-database) to prepare the database, create your private sign-in, and save your first budget. [Already have a Supabase project?](docs/getting-started.md#connect-an-existing-supabase-project)
 
+## App screenshots
+
+### Cash flow overview
+
+[![Cash inflow, commitments, spending and the six-month cash flow chart](docs/screenshots/cash-flow-overview.png)](docs/screenshots/cash-flow-overview.png)
+
+### Feature highlights
+
+These examples use a fictional budget in the [hosted dashboard](https://dfc-budget-map.vercel.app/). Select a screenshot to view it at full size.
+
+| Commitment Map | Monthly Spending |
+| --- | --- |
+| [![Commitment Map with payment status, outstanding balances and monthly totals](docs/screenshots/commitment-map.png)](docs/screenshots/commitment-map.png) | [![Monthly Spending chart with a category breakdown and transfer status](docs/screenshots/monthly-spending.png)](docs/screenshots/monthly-spending.png) |
+| See what is paid, scheduled or carried forward. | Review the category breakdown and see which amounts have been transferred. |
+
+| Monthly Transfer | Commitment Simulator |
+| --- | --- |
+| [![Monthly Transfer with salary, payment progress, arrears and spending checklists](docs/screenshots/monthly-transfer.png)](docs/screenshots/monthly-transfer.png) | [![Commitment Simulator comparing monthly balances before and after a new instalment](docs/screenshots/commitment-simulator.png)](docs/screenshots/commitment-simulator.png) |
+| Record cash inflow and check off payments and spending transfers. | Compare a proposed instalment against your monthly buffer. |
+
+<details>
+<summary>Settings, including language and light mode</summary>
+
+[![Settings in light mode with language, appearance and integration options](docs/screenshots/settings.png)](docs/screenshots/settings.png)
+
+</details>
+
 ## Release version
 
 The sidebar uses the major and minor numbers from `version` in `package.json`. Its patch number is `buildNumber - versionStartBuild`, so Build 22 displays `v3.0.0 (Build 22)` and Build 23 displays `v3.0.1 (Build 23)`. Increment `buildNumber` for each release and keep the package version and lockfile in sync. For a new major or minor series, set `versionStartBuild` to its first build number.
