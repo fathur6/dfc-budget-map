@@ -2,13 +2,13 @@
 
 Plan monthly cash flow in MYR, track payments and spending, and see what a new commitment would do to your budget. Due dates follow Malaysia time.
 
-## Bila ansuran bertembung pada bulan kelima
+## When bills collide in month five
 
-[![Komik empat panel tentang ansuran iPhone 15, insurans kereta dan cukai jalan pada bulan kelima, bil TNB yang ditangguh, dan semakan aliran tunai enam bulan](docs/illustrations/bulan-kelima.png)](docs/illustrations/bulan-kelima.png)
+[![Four-panel comic showing a six-month phone instalment, the car renewals due in month five, the TNB bill carried into month six, and a review of the full cash flow](docs/illustrations/month-five.png)](docs/illustrations/month-five.png)
 
-Dalam senario fiksyen ini, seorang pembeli mengambil iPhone 15 melalui SPayLater dengan ansuran selama enam bulan. Pada bulan kelima, insurans kereta dan cukai jalan perlu diperbaharui serentak. Bajet bulan itu tak cukup untuk membayar bil TNB, jadi bil tersebut ditangguhkan. Bulan keenam kini perlu menampung bil tertunggak bersama ansuran terakhir dan komitmen biasa.
+In this fictional case, a buyer has already committed to six SPayLater instalments for an iPhone 15. In month five, his car insurance and road tax are both due for renewal. He puts off the TNB electricity bill because his budget is short. Month six now has to cover the overdue bill, the final phone instalment and his usual expenses.
 
-Dalam **Commitment Map**, masukkan insurans kereta dan cukai jalan pada bulan pembaharuan. Sebelum mengambil ansuran, gunakan **Simulator** untuk membandingkan baki dengan dan tanpa bayaran baharu sepanjang tempoh enam bulan. Jika ansuran sudah berjalan, semak bulan kelima dan keenam dalam **Overview**. Tetapkan bulan bayaran yang dirancang dalam Commitment Map untuk melihat bagaimana bil yang ditangguhkan menambah komitmen bulan berikutnya.
+Add your annual renewals to the **Commitment Map** in the month they’re due. Before taking on a new instalment, use the **Commitment Simulator** to compare your monthly balances with and without the payment over its full term. If a bill is already being deferred, set its planned payment month and check the impact on both months in **Overview**.
 
 ## Start here
 
