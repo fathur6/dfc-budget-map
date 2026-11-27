@@ -17,6 +17,7 @@ Add your annual renewals to the **Commitment Map** in the month they’re due. B
 | Explore the app | [Try the demo](https://dfc-budget-map.vercel.app/#overview) with a fictional budget. No account needed. |
 | Keep a budget in one browser | Open the app and choose **Start fresh**. Save a copy with **Data → Export backup**. |
 | Sync a private budget across devices | [Set up your own copy](docs/getting-started.md#deploy-your-own-copy) using GitHub, Vercel and Supabase. |
+| Set up the app with an AI agent | [Copy the setup prompt](docs/ai-agent-setup.md#copy-this-first) into ChatGPT Codex, OpenCode, Hermes Agent, DeepSeek Harness or Claude Code. |
 
 ### Deploy with Vercel
 

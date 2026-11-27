@@ -2,6 +2,8 @@
 
 Open the [demo](https://dfc-budget-map.vercel.app/#overview) to try the app with fictional data. To use it on one browser, choose **Start fresh** and export backups from the **Data** menu. For a private budget you can open on multiple devices, set up your own copy below.
 
+If you prefer help from a coding agent, [copy the AI agent setup prompt](ai-agent-setup.md#copy-this-first) to run the app locally or set up your own hosted copy.
+
 ## Deploy your own copy
 
 You can do all of this in a browser. GitHub keeps your copy of the app, Vercel hosts it at your own web address, and Supabase stores your budget and sign-in.
