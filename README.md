@@ -2,6 +2,14 @@
 
 Plan monthly cash flow in MYR, track payments and spending, and see what a new commitment would do to your budget. Due dates follow Malaysia time.
 
+## Bila ansuran bertembung pada bulan kelima
+
+[![Komik empat panel tentang ansuran iPhone 15, insurans kereta dan cukai jalan pada bulan kelima, bil TNB yang ditangguh, dan semakan aliran tunai enam bulan](docs/illustrations/bulan-kelima.png)](docs/illustrations/bulan-kelima.png)
+
+Dalam senario fiksyen ini, seorang pembeli mengambil iPhone 15 melalui SPayLater dengan ansuran selama enam bulan. Pada bulan kelima, insurans kereta dan cukai jalan perlu diperbaharui serentak. Bajet bulan itu tak cukup untuk membayar bil TNB, jadi bil tersebut ditangguhkan. Bulan keenam kini perlu menampung bil tertunggak bersama ansuran terakhir dan komitmen biasa.
+
+Dalam **Commitment Map**, masukkan insurans kereta dan cukai jalan pada bulan pembaharuan. Sebelum mengambil ansuran, gunakan **Simulator** untuk membandingkan baki dengan dan tanpa bayaran baharu sepanjang tempoh enam bulan. Jika ansuran sudah berjalan, semak bulan kelima dan keenam dalam **Overview**. Tetapkan bulan bayaran yang dirancang dalam Commitment Map untuk melihat bagaimana bil yang ditangguhkan menambah komitmen bulan berikutnya.
+
 ## Start here
 
 | What you want to do | Where to start |
