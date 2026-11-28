@@ -1,0 +1,74 @@
+:root[data-theme="light"] {
+  color-scheme: light;
+  color: #182832;
+  background: #f0f4f6;
+  --canvas: #f0f4f6;
+  --panel: #fff;
+  --raised: #eaf0f3;
+  --line: #cbd8df;
+  --muted: #4d6170;
+  --dim: #546b7c;
+  --green: #087551;
+  --amber: #815317;
+  --red: #a62d4b;
+  --blue: #255f9b;
+  --chart-label-color: #20343e;
+  --light-green: #e5f4ec;
+  --light-green-line: #a9d2ba;
+  --light-amber: #fff5e0;
+  --light-amber-line: #e5c996;
+  --light-red: #fdebf0;
+  --light-red-line: #e4b2bf;
+  --light-blue: #e8f2fd;
+  --light-blue-line: #b0cce5;
+}
+[data-theme="light"] .sidebar,
+[data-theme="light"] .modal,
+[data-theme="light"] .data-options { background: var(--panel); color: inherit; border-color: var(--line); }
+[data-theme="light"] .topbar { background: #f5f8faee; border-color: var(--line); }
+[data-theme="light"] .modal { box-shadow: 0 24px 100px #233a4b36; }
+[data-theme="light"] .modal::backdrop { background: #21344270; }
+[data-theme="light"] .data-options { box-shadow: 0 8px 24px #233a4b29; }
+[data-theme="light"] :is(.button.secondary, .mode, .status-picker span, .inactive-tile) { border-color: var(--line); }
+[data-theme="light"] .button.secondary { background: var(--raised); color: inherit; }
+[data-theme="light"] :is(.button.secondary, .icon-button, .month-column, .sidebar nav button, .help, .month-switcher button, .data-options button):hover:not(:disabled) {
+  background: #dce7ed; color: #182832;
+}
+[data-theme="light"] .button.primary { color: white; }
+[data-theme="light"] .button.primary:hover:not(:disabled) { background: #065840; border-color: #065840; }
+
+[data-theme="light"] :is(.sidebar nav button.active, .brand-icon, .metric-icon, .tile.paid, .tile.transferred-spend, .transfer-complete, .payment-record-option, .scenario.fits, .toast),
+[data-theme="light"] button.inactive-tile:hover,
+[data-theme="light"] .status-picker .status-action:hover:not(:disabled) span {
+  background: var(--light-green); border-color: var(--light-green-line); color: var(--green);
+}
+[data-theme="light"] .mode.cloud { border-color: var(--light-green-line); }
+[data-theme="light"] button.transfer-complete:hover:not(:disabled) { background: #d4ebdf; }
+[data-theme="light"] :is(.tile.scheduled, .metric.amber .metric-icon, .scenario.tight) {
+  background: var(--light-amber); border-color: var(--light-amber-line); color: var(--amber);
+}
+[data-theme="light"] :is(.button.danger, .tile.missed, .transfer-arrears-heading, .transfer-arrears-rows li, .scenario.deficit, .form-error, .funding-primary.deficit) {
+  background: var(--light-red); border-color: var(--light-red-line); color: var(--red);
+}
+[data-theme="light"] .button.danger:hover:not(:disabled) { background: #f9dae4; }
+[data-theme="light"] :is(.tile.recorded-spend, .tile.recorded, .metric.blue .metric-icon, .row-icon) {
+  background: var(--light-blue); border-color: var(--light-blue-line); color: var(--blue);
+}
+[data-theme="light"] :is(.month-switcher .choose-month, .month-column, .metric-note strong, .allocation-count strong, .insight-facts strong,
+  .cash-projection-note strong, .map-table tfoot td, .map-table tfoot th, .monthly-summary tbody th, .field,
+  .scenario p, .scenario-comparison, .scenario-months td:not(.cash-negative), .support-currencies li, .spending-advanced summary,
+  .spending-conversion-preview strong, .breakdown-month-label strong) { color: #243946; }
+[data-theme="light"] .map-table tr > :first-child,
+[data-theme="light"] .map-table tbody :is(td, th) { border-color: var(--line); }
+[data-theme="light"] .map-table thead th,
+[data-theme="light"] .map-table thead tr > :first-child { background: var(--raised); }
+[data-theme="light"] .map-table .selected-col { background: #edf8f2; }
+[data-theme="light"] .map-table thead .selected-col { background: #d8eee2; }
+[data-theme="light"] :is(.table-scroll, .cash-scroll) { scrollbar-color: #a4b7c5 var(--canvas); }
+[data-theme="light"] :is(.field input, .field select, .field textarea, .money-input, .status-picker input:checked + span) {
+  background: var(--panel); border-color: #a8bbc7; color: inherit;
+}
+[data-theme="light"] .money-input input { background: transparent; }
+[data-theme="light"] .status-picker input:checked + span { border-color: currentColor; }
+[data-theme="light"] .cash-balance.surplus { color: var(--green); }
+[data-theme="light"] .cash-balance.deficit { color: var(--red); }

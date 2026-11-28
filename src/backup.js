@@ -1,4 +1,5 @@
 import { active, addMonths, incomeSourceTypes, spendingCategories, validDate, validMonth } from './budget.js'
+import { validSavingsJars } from './savings.js'
 
 const validAmount = value => Number.isSafeInteger(value) && value >= 0 && value <= 999999999
 const record = value => value && typeof value === 'object' && !Array.isArray(value)
@@ -94,6 +95,7 @@ export function readBackup(text) {
       || !Object.entries(budget.spendingConfirmations).every(([month, value]) => validMonth(month) && typeof value === 'string')))
     || (budget.openingCash !== undefined && (!record(budget.openingCash) || !validMonth(budget.openingCash.month)
       || !Number.isSafeInteger(budget.openingCash.amount) || !validAmount(Math.abs(budget.openingCash.amount))))
+    || (budget.savingsJars !== undefined && !validSavingsJars(budget.savingsJars))
     || (budget.notes !== undefined && (!Array.isArray(budget.notes)
       || !budget.notes.every(note => typeof note === 'string' && note.length <= 1500)))) throw invalidBackup()
   return budget

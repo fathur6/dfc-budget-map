@@ -10,5 +10,8 @@ const releaseVersion = `${major}.${minor}.${buildNumber - versionStartBuild}`
 export default defineConfig({
   plugins: [react()],
   envPrefix: ['VITE_', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'],
-  define: { __APP_VERSION_LABEL__: JSON.stringify(`v${releaseVersion} (Build ${buildNumber})`) },
+  define: {
+    __APP_VERSION_LABEL__: JSON.stringify(`v${releaseVersion} (Build ${buildNumber})`),
+    __APP_SERVICES__: JSON.stringify({ vercel: process.env.VERCEL === '1', deepseek: Boolean(process.env.DEEPSEEK_API_KEY?.trim()) }),
+  },
 })

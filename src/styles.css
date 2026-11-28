@@ -19,11 +19,11 @@
 * { box-sizing: border-box; }
 html { scroll-padding-top: 76px; }
 body { margin: 0; min-width: 320px; }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:disabled { cursor: default; opacity: .5; }
-button, a, input, select, [tabindex] { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+button, a, input, select, textarea, [tabindex] { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 button svg, a svg { flex: none; }
 button { border: 0; background: none; }
 a { color: inherit; text-decoration: none; }
@@ -266,6 +266,11 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .payment-amount { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .tile.moved-payment { flex-direction: column; gap: 3px; }
 .moved-payment small { font-size: .9em; white-space: normal; }
+.moved-payment .payment-total {
+  align-self: stretch; margin-top: 2px; padding-top: 3px;
+  border-top: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  font-weight: 650;
+}
 .transfer-breakdown { margin: 0; }
 .transfer-breakdown > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--line); }
 .transfer-breakdown > div:last-child { font-weight: 700; border-bottom: 0; }
@@ -287,8 +292,8 @@ button.inactive-tile:hover, button.inactive-tile:focus-visible { color: var(--gr
 .sim-form .button { justify-self: start; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .field { min-width: 0; display: grid; align-content: start; gap: 7px; color: #cbd7e3; font-size: 12px; font-weight: 550; }
-.field input, .field select, .money-input { width: 100%; min-width: 0; min-height: 38px; border-radius: 6px; border: 1px solid #3a4855; background: #10161c; color: #edf2f6; padding: 8px 9px; }
-.field input::placeholder { color: var(--dim); }
+.field input, .field select, .field textarea, .money-input { width: 100%; min-width: 0; min-height: 38px; border-radius: 6px; border: 1px solid #3a4855; background: #10161c; color: #edf2f6; padding: 8px 9px; }
+.field :is(input, textarea)::placeholder { color: var(--dim); }
 .money-input { display: flex; align-items: center; padding: 0 0 0 8px; }
 .money-input span { font: 10px var(--mono); color: var(--muted); }
 .money-input input { border: 0; min-height: 36px; background: transparent; }
@@ -498,7 +503,27 @@ body {
 .breakdown-highlights dt { display: flex; gap: 5px; align-items: center; color: var(--muted); font-size: 11px; }
 .breakdown-highlights i { flex: none; width: 7px; height: 7px; border-radius: 2px; }
 .breakdown-highlights dd { display: grid; gap: 4px; margin: 5px 0 0; font: 10px var(--mono); overflow-wrap: anywhere; }
-.breakdown-highlights dd strong { font-size: 14px; }
+.breakdown-highlights dd strong { color: var(--chart-label-color, var(--series-color)); font-size: 14px; }
 @media (max-width: 1000px) {
   .breakdown-insights { grid-template-columns: minmax(0, 1fr); }
+}
+
+.field textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
+.feature-honeypot { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+.settings-panel h3 { margin: 3px 0 -2px; font-size: 13px; }
+.settings-integrations { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; }
+.settings-integrations li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; }
+.settings-integrations li + li { border-top: 1px solid var(--line); }
+.settings-integrations li strong { font-size: 13px; }
+.settings-integrations li p { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.settings-service-action { display: flex; align-items: center; justify-content: flex-end; gap: 4px; color: var(--muted); font-size: 11px; text-align: end; }
+.settings-service-action .icon-button { flex: none; }
+
+:lang(th) {
+  --mono: 'Geist Mono Variable', Tahoma, 'Thonburi', monospace;
+  font-family: 'Geist Variable', Tahoma, 'Thonburi', sans-serif;
+}
+@media (min-width: 901px) {
+  .sidebar { overflow-y: auto; }
+  .sidebar nav button, .help { white-space: normal; }
 }

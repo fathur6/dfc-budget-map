@@ -1,10 +1,9 @@
+import { appLocale } from './preferences.js'
+
 const mytDate = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit',
 })
 const currency = new Intl.NumberFormat('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const dayLabel = new Intl.DateTimeFormat('en-MY', {
-  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-})
 
 export function todayMYT(now = new Date()) {
   return mytDate.format(now)
@@ -16,7 +15,7 @@ export function addMonths(month, count) {
 }
 
 export function monthLabel(month, width = 'short', includeYear = true) {
-  return new Intl.DateTimeFormat('en-MY', {
+  return new Intl.DateTimeFormat(appLocale(), {
     timeZone: 'UTC', month: width, ...(includeYear && { year: 'numeric' }),
   }).format(new Date(month + '-01T00:00:00Z'))
 }
@@ -50,7 +49,8 @@ export function validDate(date) {
 }
 
 export function dateLabel(date) {
-  return dayLabel.format(new Date(date + 'T00:00:00Z'))
+  return new Intl.DateTimeFormat(appLocale(), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(date + 'T00:00:00Z'))
 }
 
 export function salaryChecklistMonth(data, month, today) {

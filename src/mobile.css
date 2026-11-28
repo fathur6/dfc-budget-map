@@ -1,0 +1,168 @@
+@media (max-width: 600px) {
+  html {
+    scroll-padding-top: calc(64px + env(safe-area-inset-top));
+    scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    padding: 4px 12px;
+    position: sticky;
+    top: env(safe-area-inset-top);
+    z-index: 5;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .mobile-topbar .brand { padding: 0; min-height: 44px; }
+  .mobile-topbar .brand-icon { width: 34px; height: 34px; }
+
+  .mobile-nav {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    padding: 4px calc(4px + env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) calc(4px + env(safe-area-inset-left));
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+  }
+  .mobile-nav button {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    border-radius: 8px;
+    min-height: 49px;
+    min-width: 0;
+    padding: 4px 1px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 610;
+    line-height: 1.2;
+  }
+  .mobile-nav button[aria-current="page"] { color: var(--green); background: var(--raised); }
+
+  .mobile-menu { gap: 11px; }
+  .mobile-menu-status { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; }
+  .mobile-menu-items { display: grid; border: 1px solid var(--line); border-radius: 8px; }
+  .mobile-menu-items button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 11px; text-align: start; }
+  .mobile-menu-items button + button { border-top: 1px solid var(--line); }
+  .mobile-menu-items svg { color: var(--green); }
+
+  .content { padding-block: 16px 76px; }
+  .page-heading { gap: 10px; margin-bottom: 15px; }
+  #page-title { font-size: clamp(24px, 7vw, 32px); line-height: 1.13; }
+  .month-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    width: 100%;
+    flex: 1 0 100%;
+    padding-bottom: 0;
+  }
+  .month-controls .this-month { display: inline-flex; }
+  .month-switcher .choose-month { flex: 1; min-width: 0; padding-inline: 4px; text-align: center; }
+  .month-switcher .choose-month svg { display: none; }
+  .month-switcher button { min-width: 44px; min-height: 44px; }
+  .month-switcher .choose-month, .month-controls .this-month { white-space: normal; }
+
+  .mobile-topbar .icon-button, .modal .icon-button { min-width: 44px; min-height: 44px; }
+  .button { min-height: 44px; }
+  .panel-heading .button, .transfer-rows .button, .modal-actions .button { white-space: normal; }
+
+  .transfer-income .panel-heading { align-items: center; gap: 7px 9px; padding-block: 9px; }
+  .transfer-income .section-title h2 { font-size: 15px; }
+  .transfer-inflow-value { margin-left: auto; text-align: end; }
+  .transfer-inflow-value strong { font-size: 16px; }
+  .transfer-inflow-value small { font-size: 10px; }
+  .transfer-edit-income { flex: none; width: 44px; height: 44px; }
+  .transfer-income-body[hidden] { display: none; }
+  .transfer-mobile-progress { display: grid; gap: 8px; margin-block: 8px; }
+  .transfer-mobile-progress .transfer-progress-card { gap: 7px; padding: 9px 12px; background: var(--panel); }
+  .transfer-mobile-progress .transfer-progress-arrears { min-height: 36px; }
+  .transfer-checklist .panel-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    padding: 0;
+  }
+  .transfer-rows li { grid-template-rows: auto 1fr; align-items: start; gap: 4px 7px; padding: 8px 10px; }
+  .transfer-rows .button { max-width: 132px; padding-inline: 8px; }
+  .transfer-row-description small { overflow-wrap: anywhere; }
+  .transfer-row-name { min-height: 34px; }
+  .transfer-allocation-link { min-height: 36px; }
+  .mobile-transfer-instructions summary { width: fit-content; padding: 9px 4px; cursor: pointer; }
+  .mobile-transfer-instructions p { padding: 4px; }
+
+  .mobile-segmented {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--canvas);
+  }
+  .mobile-segmented button {
+    min-height: 44px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 650;
+  }
+  .mobile-segmented button[aria-pressed="true"] { color: var(--green); background: var(--raised); }
+  .mobile-map-range { margin: 0 12px 10px; }
+  :is(#commitments, #spending) .panel-heading { flex-wrap: wrap; }
+
+  .one-month-table .map-table { width: 100%; min-width: 0; }
+  .one-month-table .map-table tr > :first-child { position: static; width: 45%; }
+  .one-month-table .row-label { min-height: 44px; }
+  .one-month-table .row-label strong { font-size: 13px; }
+  .one-month-table :is(.tile, .inactive-tile, .month-column) { min-height: 44px; white-space: normal; }
+  .one-month-table .tile { font-size: 12px; }
+  .one-month-table .moved-payment small { font-size: 10px; overflow-wrap: anywhere; }
+  .one-month-table .map-table tfoot :is(td, th) { white-space: normal; }
+
+  .cash-chart, .breakdown-insights { padding-inline: 12px; }
+  .cash-legend .button { padding-inline: 8px; white-space: normal; }
+  .cash-plot.fit-chart, .breakdown-plot.fit-chart {
+    min-width: 0;
+    height: 180px;
+    margin: 20px 0 26px 60px;
+  }
+  .fit-chart :is(.cash-axis, .breakdown-axis) span { right: calc(100% + 4px); font-size: 8px; }
+  .fit-chart :is(.cash-month-label, .breakdown-month-label) { font-size: 9px; }
+  .mobile-chart-detail {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding-block: 8px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .mobile-chart-detail strong { font-family: var(--mono); }
+  .sim-form .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .sim-form .button { justify-self: stretch; }
+
+  .modal { max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .modal .field textarea { font-size: 16px; }
+  .modal .editor { scroll-padding-block: 8px 68px; }
+  .modal .modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--raised);
+    padding: 7px 0;
+  }
+  [data-theme="light"] .modal .modal-actions { background: var(--panel); }
+  .toast { bottom: calc(67px + env(safe-area-inset-bottom)); max-width: calc(100% - 36px); }
+}

@@ -1,8 +1,8 @@
 {
   "name": "dfc-budget-map",
-  "version": "3.0.0",
-  "buildNumber": 22,
-  "versionStartBuild": 22,
+  "version": "3.1.0",
+  "buildNumber": 25,
+  "versionStartBuild": 25,
   "private": true,
   "type": "module",
   "engines": {

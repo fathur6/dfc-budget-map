@@ -1,3 +1,4 @@
+import { t } from './preferences.js'
 import { MonthlyBreakdownChart } from './MonthlyBreakdownChart.jsx'
 import { statuses } from './editors.jsx'
 
@@ -8,7 +9,7 @@ const paymentSeries = [
 ]
 const spendingSeries = { key: 'recordedTotal', label: statuses.recorded.label, color: '#8bbdf7', shade: '#416caa' }
 
-export function CommitmentChart({ months, summaries, month, chooseMonth }) {
+export function CommitmentChart({ months, summaries, month, chooseMonth, compact }) {
   const series = summaries.some(summary => summary.recordedTotal > 0) ? [...paymentSeries, spendingSeries] : paymentSeries
   const entries = months.map((value, index) => ({
     month: value,
@@ -16,7 +17,7 @@ export function CommitmentChart({ months, summaries, month, chooseMonth }) {
     amounts: series.map(({ key }) => summaries[index][key]),
   }))
 
-  return <MonthlyBreakdownChart entries={entries} series={series} month={month} chooseMonth={chooseMonth}
-    title="Monthly commitment vs. payment" description="Payments in the salary window count toward their budget month."
-    overallTitle="Overall commitment" totalLabel="Total commitment" />
+  return <MonthlyBreakdownChart entries={entries} series={series} month={month} chooseMonth={chooseMonth} compact={compact}
+    title={t("Monthly commitment vs. payment")} description={t("Payments in the salary window count toward their budget month.")}
+    overallTitle={t("Overall commitment")} totalLabel={t("Total commitment")} />
 }

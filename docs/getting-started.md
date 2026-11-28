@@ -47,8 +47,16 @@ You can do all of this in a browser. GitHub keeps your copy of the app, Vercel h
 1. On **Overview**, choose the month and click the pencil on **Cash inflow**. Enter your take-home income and save. Refresh the page and check the number is still there.
 2. In **Commitment Map → Add commitment**, enter a bill or instalment. Add its amount, first month and due day. For a one-off bill, set the first and last month to the same month.
 3. In **Monthly Spending → Add item**, add a spending item and open its cell for the month to enter the amount.
-4. Open **Monthly Transfer** to check off commitment payments and spending transfers after completing them.
+4. Open **Monthly Transfer** to check off commitment payments and spending transfers after completing them. On a phone, tap **Transfer** in the bottom navigation and switch between the two checklists there.
 5. Use **Data → Export backup** to save a copy. If you already have a browser budget, export it while signed out and import it after signing in to your new app. **Import budget** replaces the budget in the workspace currently open.
+
+## Set up a savings jar
+
+1. Open **Savings Jars → Add jar**. On a phone, find **Savings Jars** above **Simulator** in **More options**. Enter the goal, its bank, and an optional label for the account. Add a dated opening balance for money already saved.
+2. In **Monthly Transfer**, find **Savings transfers** below **Cash inflow**. Set the planned amount for the selected budget month, then choose **Mark transferred** after the deposit goes through in your banking app. Record other deposits and withdrawals on the jar itself.
+3. To model a shortfall, turn on **Allow Simulator to use this jar** in its settings and set any amount you want to leave in the jar. The **Simulator** shows hypothetical withdrawals and what remains. Record actual withdrawals from the jar page.
+
+Savings transfers move money between your own accounts. **Overview** continues to show income, commitments and spending. **Data → Export backup** includes the jars and their transaction history.
 
 ## Enable DeepSeek insights
 
@@ -61,9 +69,17 @@ DeepSeek is optional. After you set up your sign-in, you can connect your own De
 
 Budget Map sends DeepSeek a small set of predefined budget patterns. Exact amounts, dates, names and notes stay in Budget Map.
 
+## Customize Budget Map
+
+Open **Settings** to choose English, Bahasa Melayu, Bahasa Indonesia or Thai and switch between the light and dark themes. Preferences are saved in the browser. **Settings** also shows the deployment's Vercel, Supabase and DeepSeek configuration with links to their setup instructions.
+
+For a self-hosted app, you can [connect Request a feature to your own Google Sheet](feature-requests.md).
+
 ## Add Budget Map to your phone
 
 Open your production address on your phone. On **iPhone**, use Safari's **Share → Add to Home Screen** and enable **Open as Web App** if shown. On **Android**, open Chrome's menu and select **Install and create shortcut** or **Install app** when available. Open the new icon and use the same account if prompted to sign in. [Apple guide](https://support.apple.com/guide/iphone/iphea86e5236/ios) · [Chrome guide](https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DAndroid)
+
+On a phone, **Commitments** and **Spending** open to the selected month. Tap **6-month view** to compare months in the chart and table. Find **Settings**, **Simulator** and account options in the menu at the top.
 
 ## Connect an existing Supabase project
 

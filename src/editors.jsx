@@ -1,3 +1,4 @@
+import { t } from './preferences.js'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ArrowRight, Check, Clock3, Plus, ReceiptText, X } from 'lucide-react'
 import { active, addMonths, categoryMonth, commitmentCategories, dateLabel, dueDate, incomeSourceTypes, inputMoney, installment, money, monthLabel, parseMoney, paymentKey, remainingInstallment, spendingCategories, validDate, validMonth } from './budget.js'
@@ -22,7 +23,7 @@ export function Modal({ title, children, close, busy = false }) {
     onCancel={event => { event.preventDefault(); if (!busy) close() }}>
     <header className="modal-head">
       <h2 id="modal-title">{title}</h2>
-      <button type="button" className="icon-button" aria-label="Close dialog" disabled={busy} onClick={close}><X size={19} /></button>
+      <button type="button" className="icon-button" aria-label={t("Close dialog")} disabled={busy} onClick={close}><X size={19} /></button>
     </header>
     {children}
   </dialog>
@@ -102,14 +103,14 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     && isSpendingHistory(conversion, entry, today, dueDay, renewalMonth)) : []
   const renewalRecorded = history.some(entry => entry.month === renewalMonth)
   const spendingStays = transferInRange && conversion.entries.some(entry => entry.spent != null && entry.month < transferStart)
-  const commitmentCategoryField = <label className="field"><span>{converting ? 'Commitment category' : 'Category'}</span>
+  const commitmentCategoryField = <label className="field"><span>{converting ? t("Commitment category") : t("Category")}</span>
     <select name="category" value={commitmentCategory} onChange={event => setCommitmentCategory(event.currentTarget.value)}>
-      {commitmentCategories.map(category => <option key={category}>{category}</option>)}
+      {commitmentCategories.map(category => <option key={category} value={category}>{t(category)}</option>)}
     </select>
   </label>
-  const frequencyField = showFrequency && <label className="field"><span>Billing frequency</span>
+  const frequencyField = showFrequency && <label className="field"><span>{t("Billing frequency")}</span>
     <select value={frequency} onChange={event => setFrequency(event.currentTarget.value)}>
-      <option value="monthly">Monthly</option><option value="yearly">Yearly</option>
+      <option value="monthly">{t("Monthly")}</option><option value="yearly">{t("Yearly")}</option>
     </select>
   </label>
   const linkedSpending = item?.spendingSourceId && data.categories.find(source => source.id === item.spendingSourceId)
@@ -133,11 +134,11 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const due = type === 'payment' ? dueDate(month, validDay ? day : item.day) : null
   const expired = due && due < today && !item?.provisional
   const titles = {
-    income: 'Income for ' + monthLabel(month, 'long'), commitment: item ? 'Edit commitment' : 'Add commitment',
-    payment: entry ? item?.name : 'Add payment for ' + item?.name,
-    category: item ? 'Edit spending item' : 'Add spending item',
-    'convert-spending': 'Transfer as commitment',
-    spending: item?.name, 'copy-spending': 'Copy spending value?', import: 'Import a budget', reset: 'Start a fresh budget',
+    income: t('Income for ') + monthLabel(month, 'long'), commitment: t(item ? 'Edit commitment' : 'Add commitment'),
+    payment: entry ? item?.name : t('Add payment for ') + item?.name,
+    category: t(item ? 'Edit spending item' : 'Add spending item'),
+    'convert-spending': t('Transfer as commitment'),
+    spending: item?.name, 'copy-spending': t('Copy spending value?'), import: t('Import a budget'), reset: t('Start a fresh budget'),
   }
   const allocationMonth = editor.allocationMonth ?? month
   const payableRows = type === 'payment' ? allocationRows(data, item, allocationMonth, today) : []
@@ -146,11 +147,10 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   const paidUsesAllocation = oldest && entry && remainingInstallment(entry) > 0
   const openAllocation = initialAmount => open({ type: 'allocate-payment', item, month: allocationMonth, initialAmount })
   const recordAmountOption = allocationBalance > 0 && <div className="payment-record-option">
-    <div><strong>{monthLabel(allocationMonth, 'long')} budget · {money(allocationBalance)} outstanding</strong>
-      <p>Apply the payment to the oldest outstanding instalment first.</p></div>
+    <div><strong>{monthLabel(allocationMonth, 'long')} {t("budget ·")} {money(allocationBalance)} {t("outstanding")}</strong>
+      <p>{t("Apply the payment to the oldest outstanding instalment first.")}</p></div>
     <button type="button" className="button primary" disabled={busy} data-initial-focus
-      onClick={() => openAllocation()}>
-      Record amount <ArrowRight size={15} aria-hidden="true" />
+      onClick={() => openAllocation()}>{t("Record amount")} <ArrowRight size={15} aria-hidden="true" />
     </button>
   </div>
 
@@ -158,16 +158,16 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     const remaining = remainingInstallment(entry)
     return <Modal title={item.name} close={close}>
       <div className="editor">
-        <p className="muted form-note">{monthLabel(month, 'long')} instalment · {money(entry.amount - remaining)} paid · {money(remaining)} remaining</p>
+        <p className="muted form-note">{monthLabel(month, 'long')} {t("instalment ·")} {money(entry.amount - remaining)} {t("paid ·")} {money(remaining)} {t("remaining")}</p>
         {recordAmountOption}
         <dl className="transfer-breakdown">
-          {entry.partial.paid > 0 && <div><dt>Previously recorded</dt><dd>{money(entry.partial.paid)}</dd></div>}
+          {entry.partial.paid > 0 && <div><dt>{t("Previously recorded")}</dt><dd>{money(entry.partial.paid)}</dd></div>}
           {entry.partial.allocations.map((payment, index) => <div key={index}>
-            <dt>{dateLabel(payment.date)}<small>{monthLabel(payment.month)} budget</small></dt><dd>{money(payment.amount)}</dd>
+            <dt>{dateLabel(payment.date)}<small>{monthLabel(payment.month)} {t("budget")}</small></dt><dd>{money(payment.amount)}</dd>
           </div>)}
         </dl>
         <footer className="modal-actions"><div className="spacer" />
-          <button type="button" className="button secondary" onClick={close}>Done</button>
+          <button type="button" className="button secondary" onClick={close}>{t("Done")}</button>
         </footer>
       </div>
     </Modal>
@@ -177,10 +177,10 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
     return <Modal title={item.name} close={close}>
       <div className="editor">
         <p className="form-note">{monthLabel(month, 'long')} · <strong>{money(entry.amount)}</strong></p>
-        <p className="muted form-note">{entry.spendingTransferred ? 'Paid · From Monthly Spending' : 'Moved from Monthly Spending.'}</p>
+        <p className="muted form-note">{entry.spendingTransferred ? t("Paid · From Monthly Spending") : t("Moved from Monthly Spending.")}</p>
         {recordAmountOption}
         <footer className="modal-actions"><div className="spacer" />
-          <button type="button" className="button secondary" onClick={close}>Done</button>
+          <button type="button" className="button secondary" onClick={close}>{t("Done")}</button>
         </footer>
       </div>
     </Modal>
@@ -242,7 +242,7 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
           const end = readMonth(get('end'), true)
           if (end && end < start) throw new Error('The end month must be on or after the start month.')
           if (type === 'category' && conversion?.linked && (!end || end >= conversion.linkedFrom)) {
-            throw new Error('End this spending item before ' + monthLabel(conversion.linkedFrom, 'long') + ', when the linked commitment takes over.')
+            throw new Error(t('End this spending item before ') + monthLabel(conversion.linkedFrom, 'long') + t(', when the linked commitment takes over.'))
           }
           if (type === 'commitment' && linkedSpending && (!linkedSpending.end || start <= linkedSpending.end)) {
             throw new Error('Start this commitment after the linked spending item ends.')
@@ -337,201 +337,197 @@ export function Editor({ editor, close, snapshot, month, today, save, reload, op
   return <Modal title={titles[type]} close={close} busy={busy}>
     <form className="editor" onSubmit={submit}>
       {type === 'income' && <>
-        <MoneyField label="Default monthly take-home income" name="income" value={data.income} required={false} placeholder="Enter income" />
-        <MoneyField label="Base income override (optional)" name="override" value={data.incomeByMonth[month]} required={false} placeholder="Use default" />
-        <label className="check-field"><input type="checkbox" name="unknown" defaultChecked={data.incomeByMonth[month] === null} /> Base income is unknown this month</label>
-        <p className="muted form-note">Enter RM 0 as the override if this month has only additional sources.</p>
+        <MoneyField label={t("Default monthly take-home income")} name="income" value={data.income} required={false} placeholder={t("Enter income")} />
+        <MoneyField label={t("Base income override (optional)")} name="override" value={data.incomeByMonth[month]} required={false} placeholder={t("Use default")} />
+        <label className="check-field"><input type="checkbox" name="unknown" defaultChecked={data.incomeByMonth[month] === null} /> {t("Base income is unknown this month")}</label>
+        <p className="muted form-note">{t("Enter RM 0 as the override if this month has only additional sources.")}</p>
         <fieldset className="income-sources">
-          <legend>Additional sources</legend>
+          <legend>{t("Additional sources")}</legend>
           {incomeRows.map((source, index) => <fieldset className="income-source" key={source.key}>
-            <legend>Source {index + 1}</legend>
-            <label className="field"><span>Type</span>
+            <legend>{t("Source")} {index + 1}</legend>
+            <label className="field"><span>{t("Type")}</span>
               <select name={'source-type-' + source.key} defaultValue={source.type} ref={element => {
                 if (element && newIncomeRow.current === source.key) {
                   newIncomeRow.current = null
                   element.focus()
                 }
               }}>
-                {incomeSourceTypes.map(type => <option key={type}>{type}</option>)}
+                {incomeSourceTypes.map(type => <option key={type} value={type}>{t(type)}</option>)}
               </select>
             </label>
-            <MoneyField label="Amount" name={'source-amount-' + source.key} value={source.amount} />
-            <label className="field income-source-name"><span>Description (optional)</span>
+            <MoneyField label={t("Amount")} name={'source-amount-' + source.key} value={source.amount} />
+            <label className="field income-source-name"><span>{t("Description (optional)")}</span>
               <input name={'source-name-' + source.key} defaultValue={source.name} maxLength={65} />
             </label>
-            <button type="button" className="icon-button" aria-label={'Remove source ' + (index + 1)} disabled={busy}
+            <button type="button" className="icon-button" aria-label={t("Remove source ") + (index + 1)} disabled={busy}
               onClick={() => setIncomeRows(rows => rows.filter(row => row.key !== source.key))}><X size={17} /></button>
           </fieldset>)}
           <button type="button" className="button secondary" disabled={busy} onClick={() => {
             const key = crypto.randomUUID()
             newIncomeRow.current = key
             setIncomeRows(rows => [...rows, { key, type: 'Gift' }])
-          }}><Plus size={16} /> Add source</button>
-          <p className="muted form-note">Loan proceeds increase this month’s cash balance. Record repayments in the Commitment Map. The simulator excludes loan proceeds.</p>
+          }}><Plus size={16} /> {t("Add source")}</button>
+          <p className="muted form-note">{t("Loan proceeds increase this month’s cash balance. Record repayments in the Commitment Map. The simulator excludes loan proceeds.")}</p>
         </fieldset>
       </>}
       {(type === 'commitment' || type === 'category') && <>
         {type === 'category' && editor.unavailableMonth && <p className="form-note">
-          {monthLabel(editor.unavailableMonth, 'long')} is outside this item’s active months.
-          Update the first or last month to include it, then reopen its spending cell.
-        </p>}
-        <label className="field"><span>Name</span><input name="name" defaultValue={item?.name} maxLength={65} required /></label>
-        {type === 'category' && <label className="field"><span>Category</span>
+          {monthLabel(editor.unavailableMonth, 'long')} {t("is outside this item’s active months. Update the first or last month to include it, then reopen its spending cell.")}</p>}
+        <label className="field"><span>{t("Name")}</span><input name="name" defaultValue={item?.name} maxLength={65} required /></label>
+        {type === 'category' && <label className="field"><span>{t("Category")}</span>
           <select name="spendingCategory" defaultValue={item?.category ?? ''}>
-            <option value="">Uncategorized</option>
-            {spendingCategories.map(category => <option key={category}>{category}</option>)}
+            <option value="">{t("Uncategorized")}</option>
+            {spendingCategories.map(category => <option key={category} value={category}>{t(category)}</option>)}
           </select>
         </label>}
         {type === 'commitment' ? <div className="form-grid">
-          <MoneyField label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={item?.amount} />
+          <MoneyField label={yearly ? t("Yearly amount") : t("Monthly amount")} name="amount" value={item?.amount} />
           {commitmentCategoryField}
           {frequencyField}
-          {!yearly && <label className="field"><span>Due day each month</span>
+          {!yearly && <label className="field"><span>{t("Due day each month")}</span>
             <input type="number" name="day" min="1" max="31" step="1" defaultValue={item?.day ?? 1} required />
           </label>}
-          <label className="check-field"><input type="checkbox" name="provisional" defaultChecked={item?.provisional} /> Schedule needs verification</label>
+          <label className="check-field"><input type="checkbox" name="provisional" defaultChecked={item?.provisional} /> {t("Schedule needs verification")}</label>
         </div> : null}
         <div className="form-grid">
           {type === 'commitment' && yearly
-            ? <label className="field"><span>First renewal date</span>
+            ? <label className="field"><span>{t("First renewal date")}</span>
               <input type="date" name="renewalDate" min="2000-01-01" max="2100-12-31" defaultValue={firstRenewal} required />
             </label>
-            : <MonthField label="First month" name="start" value={item?.start ?? month} />}
-          <MonthField label="Last month (optional)" name="end" value={item?.end} required={false} />
+            : <MonthField label={t("First month")} name="start" value={item?.start ?? month} />}
+          <MonthField label={t("Last month (optional)")} name="end" value={item?.end} required={false} />
         </div>
         {type === 'commitment' && yearly
-          ? <p className="muted form-note">Enter the full renewal charge. Saved amounts for individual renewals still apply.</p>
-          : item && <p className="muted form-note">To record a monthly amount, open its cell.</p>}
+          ? <p className="muted form-note">{t("Enter the full renewal charge. Saved amounts for individual renewals still apply.")}</p>
+          : item && <p className="muted form-note">{t("To record a monthly amount, open its cell.")}</p>}
         {type === 'category' && item && <details className="spending-advanced">
-          <summary>Advanced</summary>
-          {conversion.linked && <p className="muted form-note">Linked to {conversion.linked.name} in Commitment Map.</p>}
+          <summary>{t("Advanced")}</summary>
+          {conversion.linked && <p className="muted form-note">{t("Linked to")} {conversion.linked.name} {t("in Commitment Map.")}</p>}
           {conversion.available && <button type="button" className="button secondary" disabled={busy}
-              onClick={() => open({ type: 'convert-spending', item })}>Transfer as commitment <ArrowRight size={15} aria-hidden="true" /></button>
+              onClick={() => open({ type: 'convert-spending', item })}>{t("Transfer as commitment")} <ArrowRight size={15} aria-hidden="true" /></button>
           }
         </details>}
       </>}
       {converting && <>
-        <p className="form-note">Move <strong>{item.name}</strong> to Commitment Map.</p>
+        <p className="form-note">{t("Move")} <strong>{item.name}</strong> {t("to Commitment Map.")}</p>
         <div className={transferMode === 'custom' ? 'form-grid' : undefined}>
-          <label className="field"><span>Transfer from</span>
+          <label className="field"><span>{t("Transfer from")}</span>
             <select value={transferMode} onChange={event => setTransferMode(event.currentTarget.value)}>
-              <option value="first">From first recorded month · {monthLabel(conversion.first)}</option>
-              <option value="current" disabled={!conversion.currentAvailable}>From current month · {monthLabel(conversion.current)}</option>
-              <option value="custom">Custom month</option>
+              <option value="first">{t("From first recorded month ·")} {monthLabel(conversion.first)}</option>
+              <option value="current" disabled={!conversion.currentAvailable}>{t("From current month ·")} {monthLabel(conversion.current)}</option>
+              <option value="custom">{t("Custom month")}</option>
             </select>
           </label>
-          {transferMode === 'custom' && <MonthField label="Start month" name="start" value={customMonth}
+          {transferMode === 'custom' && <MonthField label={t("Start month")} name="start" value={customMonth}
             min={item.start} max={conversion.latest} onInput={event => setCustomMonth(event.currentTarget.value)} />}
         </div>
         {!conversion.linked && <div className="form-grid">
           {frequencyField}
           {commitmentCategoryField}
-          <MoneyField key={billingFrequency} label={yearly ? 'Yearly amount' : 'Monthly amount'} name="amount" value={yearly ? null : conversion.amount} />
-          {yearly ? <label className="field"><span>Next renewal date</span>
+          <MoneyField key={billingFrequency} label={yearly ? t("Yearly amount") : t("Monthly amount")} name="amount" value={yearly ? null : conversion.amount} />
+          {yearly ? <label className="field"><span>{t("Next renewal date")}</span>
             <input type="date" name="renewalDate" min={earliestRenewal} max={latestRenewal} defaultValue={renewalDate} required
               onInput={event => setRenewalDate(event.currentTarget.value)} />
-          </label> : <label className="field"><span>Due day each month</span>
+          </label> : <label className="field"><span>{t("Due day each month")}</span>
             <input type="number" name="day" min="1" max="31" step="1" required
               value={transferDay} onChange={event => setTransferDay(event.currentTarget.value)} /></label>}
         </div>}
         {transferInRange && <div className="spending-conversion-preview">
-          <p><strong>Monthly Spending</strong> {spendingStays ? `keeps entries before ${monthLabel(transferStart, 'long')}.` : 'removes this item.'}</p>
-          <p><strong>Commitment Map</strong> {conversion.linked ? 'adds entries to the existing commitment from' : 'takes over from'} {monthLabel(transferStart, 'long')}.</p>
-          {history.some(entry => entry.transferred) && <p>Transferred amounts become Paid in their original month.</p>}
-          {history.some(entry => !entry.transferred) && <p>Other past and confirmed amounts stay in their original month as recorded spending.</p>}
+          <p><strong>{t("Monthly Spending")}</strong> {spendingStays ? t("keeps entries before {month}.", { month: monthLabel(transferStart, 'long') }) : t("removes this item.")}</p>
+          <p><strong>{t("Commitment Map")}</strong> {conversion.linked ? t("adds entries to the existing commitment from") : t("takes over from")} {monthLabel(transferStart, 'long')}.</p>
+          {history.some(entry => entry.transferred) && <p>{t("Transferred amounts become Paid in their original month.")}</p>}
+          {history.some(entry => !entry.transferred) && <p>{t("Other past and confirmed amounts stay in their original month as recorded spending.")}</p>}
           {!conversion.linked && yearly && <p>{renewalInRange
-            ? <>Renews yearly from <strong>{dateLabel(renewalDate)}</strong>.</>
-            : 'Choose the date of the next annual charge.'}</p>}
-          {renewalRecorded && <p>The recorded amount for {monthLabel(renewalMonth)} is kept. The new charge applies from the following renewal.</p>}
-          {!conversion.linked && yearly && <p>The annual schedule replaces unconfirmed future spending estimates.</p>}
+            ? <>{t("Renews yearly from")} <strong>{dateLabel(renewalDate)}</strong>.</>
+            : t("Choose the date of the next annual charge.")}</p>}
+          {renewalRecorded && <p>{t("The recorded amount for")} {monthLabel(renewalMonth)} {t("is kept. The new charge applies from the following renewal.")}</p>}
+          {!conversion.linked && yearly && <p>{t("The annual schedule replaces unconfirmed future spending estimates.")}</p>}
         </div>}
       </>}
       {type === 'payment' && <>
-        <p className="muted form-note">{monthLabel(month, 'long')} · due {new Intl.DateTimeFormat('en-MY', {
-          day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-        }).format(new Date(due + 'T00:00:00Z'))}</p>
-        {oneOff && <p className="muted form-note">One-off instalment originally due in {monthLabel(month, 'long')}.</p>}
+        <p className="muted form-note">{monthLabel(month, 'long')} {t("· due")} {dateLabel(due)}</p>
+        {oneOff && <p className="muted form-note">{t("One-off instalment originally due in")} {monthLabel(month, 'long')}.</p>}
         {recordAmountOption}
-        <fieldset className="status-picker"><legend>Payment status</legend>
+        <fieldset className="status-picker"><legend>{t("Payment status")}</legend>
           {paidUsesAllocation && <button type="button" className="status-action paid" disabled={busy}
             onClick={() => openAllocation(oldest.remaining ?? oldest.amount)}>
-            <span><Check size={16} aria-hidden="true" />Paid</span>
+            <span><Check size={16} aria-hidden="true" />{t("Paid")}</span>
           </button>}
           {[...(paidUsesAllocation ? [] : [['paid', 'Paid', Check]]),
             ...(payment?.partial || !allocationBalance ? [['partial', 'Partially paid', Clock3]] : []),
             ['auto', 'Planned', Clock3], ['missed', 'Missed', AlertTriangle]]
             .map(([value, label, Icon]) => <label className={['auto', 'partial'].includes(value) ? 'scheduled' : value} key={value}>
               <input type="radio" name="status" value={value} checked={paymentStatus === value} onChange={() => setPaymentStatus(value)} />
-              <span><Icon size={16} />{label}</span>
+              <span><Icon size={16} />{t(label)}</span>
             </label>)}
         </fieldset>
         {!['missed', 'partial'].includes(paymentStatus) && <>
-          {paymentStatus === 'paid' && <label className="field"><span>Date paid (optional)</span>
+          {paymentStatus === 'paid' && <label className="field"><span>{t("Date paid (optional)")}</span>
             <input name="paidDate" type="date" min="2000-01-01" max={today} defaultValue={payment?.paidDate} />
           </label>}
-          <MonthField key={paymentStatus} label={paymentStatus === 'paid' ? 'Month paid if date is unknown' : 'Planned payment month (optional)'}
+          <MonthField key={paymentStatus} label={paymentStatus === 'paid' ? t("Month paid if date is unknown") : t("Planned payment month (optional)")}
             name="paymentMonth" value={paymentStatus === 'paid' && payment?.status !== 'paid' ? undefined : payment?.paymentMonth} required={false}
             max={paymentStatus === 'paid' ? today.slice(0, 7) : undefined} />
           <p className="muted form-note">{paymentStatus === 'paid'
-            ? 'Enter the actual date to apply the salary rule. Leave both blank to use the original month.'
-            : 'Leave blank to use the original month. Choose a different month to charge its budget.'}</p>
+            ? t("Enter the actual date to apply the salary rule. Leave both blank to use the original month.")
+            : t("Leave blank to use the original month. Choose a different month to charge its budget.")}</p>
         </>}
         {paymentStatus === 'partial' && <>
-          <MoneyField label="Amount paid in original month" name="partialPaid" value={payment?.partial?.paid} />
-          <MonthField label="Carry balance to" name="carryMonth" min={addMonths(month, 1)}
+          <MoneyField label={t("Amount paid in original month")} name="partialPaid" value={payment?.partial?.paid} />
+          <MonthField label={t("Carry balance to")} name="carryMonth" min={addMonths(month, 1)}
             value={payment?.partial?.month ?? addMonths(month, 1)} />
           <label className="check-field"><input type="checkbox" name="carrySettled" checked={carrySettled}
-            onChange={event => setCarrySettled(event.target.checked)} /> Remaining balance paid</label>
+            onChange={event => setCarrySettled(event.target.checked)} /> {t("Remaining balance paid")}</label>
           {carrySettled && <>
-            <label className="field"><span>Date balance paid (optional)</span>
+            <label className="field"><span>{t("Date balance paid (optional)")}</span>
               <input type="date" name="carryPaidDate" min={month + '-01'} max={today} defaultValue={payment?.partial?.paidDate} />
             </label>
-            <MonthField label="Month paid if date is unknown" name="carryPaidMonth" min={month}
+            <MonthField label={t("Month paid if date is unknown")} name="carryPaidMonth" min={month}
               max={today.slice(0, 7)} value={payment?.partial?.paidMonth ?? ''} required={false} />
           </>}
         </>}
         <div className="form-grid">
-          <MoneyField label={paymentStatus === 'partial' ? 'Total amount due' : oneOff ? 'Amount for this month' : 'Amount for this month (optional)'} name="amount" value={payment?.amount}
+          <MoneyField label={paymentStatus === 'partial' ? t("Total amount due") : oneOff ? t("Amount for this month") : t("Amount for this month (optional)")} name="amount" value={payment?.amount}
             required={oneOff} placeholder={oneOff ? '0.00' : inputMoney(item.amount)} />
-          <label className="field"><span>Due day (optional)</span>
+          <label className="field"><span>{t("Due day (optional)")}</span>
             <input type="number" name="day" min="1" max="31" step="1" defaultValue={payment?.day}
               placeholder={String(item.day)} onChange={event => setPaymentDay(event.target.value)} />
           </label>
         </div>
-        <p className="muted form-note">{item.provisional ? 'This schedule is provisional. Confirm its dates in the commitment editor to enable automatic overdue status.' : expired ? 'The original due date has passed.' : 'Unpaid instalments turn red after their due date in Malaysia time.'} Mark an instalment paid once it is fully settled.</p>
+        <p className="muted form-note">{item.provisional ? t("This schedule is provisional. Confirm its dates in the commitment editor to enable automatic overdue status.") : expired ? t("The original due date has passed.") : t("Unpaid instalments turn red after their due date in Malaysia time.")} {t("Mark an instalment paid once it is fully settled.")}</p>
       </>}
       {type === 'spending' && <>
         <p className="muted form-note">{monthLabel(month, 'long')}</p>
-        <MoneyField label="Total spent this month" name="spent" value={data.spending[key]?.spent} required={false} placeholder="Enter monthly total" />
-        {data.spending[key]?.spent != null && <p className="muted form-note">Clear the amount and save to remove this month’s total.</p>}
+        <MoneyField label={t("Total spent this month")} name="spent" value={data.spending[key]?.spent} required={false} placeholder={t("Enter monthly total")} />
+        {data.spending[key]?.spent != null && <p className="muted form-note">{t("Clear the amount and save to remove this month’s total.")}</p>}
       </>}
       {copying && <>
-        <p className="form-note">Copy <strong>{money(sourceAmount)}</strong> for <strong>{item.name}</strong> from {monthLabel(editor.sourceMonth, 'long')}?</p>
-        {editor.month ? <p className="form-note">Destination <strong>{monthLabel(editor.month, 'long')}</strong></p>
-          : <label className="field"><span>Copy to month</span>
+        <p className="form-note">{t("Copy")} <strong>{money(sourceAmount)}</strong> {t("for")} <strong>{item.name}</strong> {t("from")} {monthLabel(editor.sourceMonth, 'long')}?</p>
+        {editor.month ? <p className="form-note">{t("Destination")} <strong>{monthLabel(editor.month, 'long')}</strong></p>
+          : <label className="field"><span>{t("Copy to month")}</span>
             <input type="month" name="targetMonth" min={item.start} max={item.end || '2100-12'}
               pattern={monthPattern} placeholder="YYYY-MM" required onInput={event => setTargetMonth(event.currentTarget.value)} />
           </label>}
-        {targetAmount != null && <p className="form-note">This will replace the destination amount of <strong>{money(targetAmount)}</strong>.</p>}
+        {targetAmount != null && <p className="form-note">{t("This will replace the destination amount of")} <strong>{money(targetAmount)}</strong>.</p>}
       </>}
       {type === 'import' && <>
-        <p className="muted form-note">Import replaces the budget in this workspace. Export the existing budget first if you want to keep a copy.</p>
-        <label className="field"><span>Budget backup file</span><input name="backup" type="file" accept="application/json,.json" required /></label>
+        <p className="muted form-note">{t("Import replaces the budget in this workspace. Export the existing budget first if you want to keep a copy.")}</p>
+        <label className="field"><span>{t("Budget backup file")}</span><input name="backup" type="file" accept="application/json,.json" required /></label>
       </>}
-      {type === 'reset' && <p className="muted form-note">This replaces the demo and any changes made to it in this browser with an empty budget.</p>}
-      {error && <div className="form-error" role="alert">{error} <button type="button" className="link-button" onClick={reload}>Reload saved budget</button></div>}
-      {confirm && <p className="form-error" role="status">Delete this {type === 'category' ? 'spending item' : type} and all its monthly entries?</p>}
+      {type === 'reset' && <p className="muted form-note">{t("This replaces the demo and any changes made to it in this browser with an empty budget.")}</p>}
+      {error && <div className="form-error" role="alert">{t(error)} <button type="button" className="link-button" onClick={reload}>{t("Reload saved budget")}</button></div>}
+      {confirm && <p className="form-error" role="status">{t("Delete this")} {type === 'category' ? t("spending item") : type} {t("and all its monthly entries?")}</p>}
       <footer className="modal-actions">
         {type === 'spending' && data.spending[key]?.spent != null &&
           <button type="button" className="button secondary" disabled={busy}
-            onClick={() => open({ type: 'copy-spending', item, sourceMonth: month })}>Copy to month</button>}
-        {type === 'payment' && payment?.oneOff && <button type="submit" value="remove-payment" formNoValidate disabled={busy} className="button danger">Remove monthly entry</button>}
+            onClick={() => open({ type: 'copy-spending', item, sourceMonth: month })}>{t("Copy to month")}</button>}
+        {type === 'payment' && payment?.oneOff && <button type="submit" value="remove-payment" formNoValidate disabled={busy} className="button danger">{t("Remove monthly entry")}</button>}
         {item && ['commitment', 'category'].includes(type) && (confirm
-          ? <button type="submit" value="delete" formNoValidate disabled={busy} className="button danger">Confirm delete</button>
-          : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">Delete</button>)}
+          ? <button type="submit" value="delete" formNoValidate disabled={busy} className="button danger">{t("Confirm delete")}</button>
+          : <button type="button" onClick={() => setConfirm(true)} disabled={busy} className="button danger">{t("Delete")}</button>)}
         <div className="spacer" />
-        <button type="button" className="button secondary" disabled={busy} onClick={close}>Cancel</button>
-        <button type="submit" className="button primary" disabled={busy || (converting && !transferInRange)} data-initial-focus={copying && editor.month ? "" : undefined}>{busy ? 'Saving…' : copying ? 'Copy value' : converting ? 'Transfer as commitment' : type === 'reset' ? 'Start fresh' : type === 'import' ? 'Import and replace' : 'Save changes'}</button>
+        <button type="button" className="button secondary" disabled={busy} onClick={close}>{t("Cancel")}</button>
+        <button type="submit" className="button primary" disabled={busy || (converting && !transferInRange)} data-initial-focus={copying && editor.month ? "" : undefined}>{busy ? t("Saving…") : copying ? t("Copy value") : converting ? t("Transfer as commitment") : type === 'reset' ? t("Start fresh") : type === 'import' ? t("Import and replace") : t("Save changes")}</button>
       </footer>
     </form>
   </Modal>
@@ -563,22 +559,22 @@ export function SignIn({ supabase, close }) {
       setBusy(false)
     }
   }
-  return <Modal title="Sign in to your budget" close={close} busy={busy}>
+  return <Modal title={t("Sign in to your budget")} close={close} busy={busy}>
     {sent ? <div className="editor">
-      <p className="form-note" role="status">Check your inbox for the sign-in link. Open it on the device where you want to use the budget.</p>
-      <footer className="modal-actions"><div className="spacer" /><button className="button secondary" onClick={close}>Done</button></footer>
+      <p className="form-note" role="status">{t("Check your inbox for the sign-in link. Open it on the device where you want to use the budget.")}</p>
+      <footer className="modal-actions"><div className="spacer" /><button className="button secondary" onClick={close}>{t("Done")}</button></footer>
     </div> : <form className="editor" onSubmit={submit}>
-      <label className="field"><span>Email</span><input name="email" type="email" autoComplete="email" required /></label>
-      {usePassword && <label className="field"><span>Password</span>
+      <label className="field"><span>{t("Email")}</span><input name="email" type="email" autoComplete="email" required /></label>
+      {usePassword && <label className="field"><span>{t("Password")}</span>
         <input name="password" type="password" autoComplete="current-password" required />
       </label>}
-      {usePassword && <p className="muted form-note">Set a password from the Data menu in a browser where you’re already signed in.</p>}
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {usePassword && <p className="muted form-note">{t("Set a password from the Data menu in a browser where you’re already signed in.")}</p>}
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
       <footer className="modal-actions">
         <button type="button" className="button secondary" disabled={busy}
-          onClick={() => { setUsePassword(value => !value); setError('') }}>{usePassword ? 'Use email link' : 'Use password'}</button>
+          onClick={() => { setUsePassword(value => !value); setError('') }}>{usePassword ? t("Use email link") : t("Use password")}</button>
         <div className="spacer" />
-        <button className="button primary" disabled={busy}>{usePassword ? (busy ? 'Signing in…' : 'Sign in') : (busy ? 'Sending…' : 'Email sign-in link')}</button>
+        <button className="button primary" disabled={busy}>{usePassword ? (busy ? t("Signing in…") : t("Sign in")) : (busy ? t("Sending…") : t("Email sign-in link"))}</button>
       </footer>
     </form>}
   </Modal>
@@ -607,18 +603,18 @@ export function SetPassword({ supabase, close, saved }) {
       setBusy(false)
     }
   }
-  return <Modal title="Set sign-in password" close={close} busy={busy}>
+  return <Modal title={t("Set sign-in password")} close={close} busy={busy}>
     <form className="editor" onSubmit={submit}>
-      <p className="muted form-note">Use this password with your existing email to sign in from the iPhone Home Screen app.</p>
-      <label className="field"><span>New password (12 characters or more)</span>
+      <p className="muted form-note">{t("Use this password with your existing email to sign in from the iPhone Home Screen app.")}</p>
+      <label className="field"><span>{t("New password (12 characters or more)")}</span>
         <input name="password" type="password" autoComplete="new-password" minLength={12} required />
       </label>
-      <label className="field"><span>Confirm password</span>
+      <label className="field"><span>{t("Confirm password")}</span>
         <input name="confirm" type="password" autoComplete="new-password" minLength={12} required />
       </label>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
       <footer className="modal-actions">
-        <div className="spacer" /><button className="button primary" disabled={busy}>{busy ? 'Saving…' : 'Save password'}</button>
+        <div className="spacer" /><button className="button primary" disabled={busy}>{busy ? t("Saving…") : t("Save password")}</button>
       </footer>
     </form>
   </Modal>

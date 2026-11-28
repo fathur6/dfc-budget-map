@@ -1,3 +1,4 @@
+import { t } from './preferences.js'
 import { BarChart3, PieChart, Target } from 'lucide-react'
 import { money, monthLabel } from './budget.js'
 
@@ -14,13 +15,13 @@ function BreakdownRing({ segments, total, emptyLabel }) {
     : slices[0]?.[tone] ?? 'var(--line)'
 
   return <div className="breakdown-ring" style={{ '--ring-light': gradient('color'), '--ring-dark': gradient('shade') }}>
-    <div><span>{total || !emptyLabel ? 'Total' : emptyLabel}</span><strong>{money(total)}</strong></div>
+    <div><span>{total || !emptyLabel ? t("Total") : emptyLabel}</span><strong>{money(total)}</strong></div>
   </div>
 }
 
 export function MonthlyBreakdownChart({
   entries, series, month, chooseMonth, title, description, overallTitle, totalLabel,
-  highlightsTitle = 'Key highlights', emptyLabel,
+  highlightsTitle = 'Key highlights', emptyLabel, compact,
 }) {
   const max = Math.max(400, ...entries.map(entry => entry.total))
   const unit = 10 ** Math.floor(Math.log10(max / 4))
@@ -30,33 +31,34 @@ export function MonthlyBreakdownChart({
     ...item, amount: entries.reduce((sum, entry) => sum + entry.amounts[index], 0),
   }))
   const total = segments.reduce((sum, segment) => sum + segment.amount, 0)
+  const selected = entries.find(entry => entry.month === month)
   const points = entries.map((entry, index) => `${index * 100 + 50},${100 - entry.total / scale * 100}`).join(' ')
 
   return <div className="breakdown-insights">
     <section className="breakdown-insight">
       <div className="section-title"><BarChart3 size={19} /><h3>{title}</h3></div>
-      <p>{description} Select a month to focus its column in the table.</p>
+      <p>{description} {t("Select a month to focus its column in the table.")}</p>
       <div className="breakdown-chart-scroll" role="region" aria-label={title} tabIndex={0}>
-        <div className="breakdown-plot">
+        <div className={'breakdown-plot' + (compact ? ' fit-chart' : '')}>
           {[4, 3, 2, 1, 0].map(tick => <div key={tick} className="breakdown-axis"
             style={{ top: (4 - tick) * 25 + '%' }} aria-hidden="true">
             <span>{money(tick * step).replace(/\.00$/, '')}</span>
           </div>)}
           <div className="breakdown-columns">
             {entries.map(({ month: value, total: amount, amounts }) => {
-              const detail = series.map(({ label }, index) => label + ' ' + money(amounts[index])).join(' · ')
+              const detail = series.map(({ label }, index) => t(label) + ' ' + money(amounts[index])).join(' · ')
               return <button type="button" className="breakdown-month" key={value}
                 disabled={value < '2000-01' || value > '2100-12'} aria-pressed={value === month}
-                aria-label={[monthLabel(value, 'long'), 'total ' + money(amount), detail].filter(Boolean).join(', ')}
+                aria-label={[monthLabel(value, 'long'), t("total ") + money(amount), detail].filter(Boolean).join(', ')}
                 title={detail || emptyLabel} onClick={() => chooseMonth(value)}>
                 <span className="breakdown-stack chart-rounded-top" aria-hidden="true"
                   style={{ height: amount / scale * 100 + '%' }}>
                   {series.map(({ label, color, shade }, index) => amounts[index] > 0 && <span key={label}
                     style={{ height: amounts[index] / amount * 100 + '%', background: `linear-gradient(${color}, ${shade})` }}
-                    title={label + ' ' + money(amounts[index])} />)}
+                    title={t(label) + ' ' + money(amounts[index])} />)}
                 </span>
                 <span className="breakdown-point" style={{ top: (1 - amount / scale) * 100 + '%' }} aria-hidden="true" />
-                <span className="breakdown-month-label" aria-hidden="true">{monthLabel(value)}<strong>{money(amount)}</strong></span>
+                <span className="breakdown-month-label" aria-hidden="true">{monthLabel(value, 'short', !compact)}{!compact && <strong>{money(amount)}</strong>}</span>
               </button>
             })}
           </div>
@@ -65,8 +67,11 @@ export function MonthlyBreakdownChart({
           </svg>
         </div>
       </div>
+      {compact && selected && <div className="mobile-chart-detail" aria-live="polite">
+        <span>{monthLabel(selected.month, 'long')}</span><strong>{money(selected.total)}</strong>
+      </div>}
       <div className="legend breakdown-chart-legend">
-        {series.map(({ label, color }) => <span key={label}><i style={{ background: color }} />{label}</span>)}
+        {series.map(({ label, color }) => <span key={label}><i style={{ background: color }} />{t(label)}</span>)}
         <span><i className="breakdown-line-key" />{totalLabel}</span>
       </div>
     </section>
@@ -77,11 +82,11 @@ export function MonthlyBreakdownChart({
         <BreakdownRing segments={segments} total={total} emptyLabel={emptyLabel} />
       </section>
       {segments.length > 0 && <section className="breakdown-insight">
-        <div className="section-title"><Target size={19} /><h3>{highlightsTitle}</h3></div>
+        <div className="section-title"><Target size={19} /><h3>{t(highlightsTitle)}</h3></div>
         <dl className="breakdown-highlights">
           {segments.map(({ label, color, amount }) => <div key={label}>
-            <dt><i style={{ background: color }} />{label}</dt>
-            <dd><strong style={{ color }}>{total ? (amount / total * 100).toFixed(1) + '%' : '—'}</strong><span>{money(amount)}</span></dd>
+            <dt><i style={{ background: color }} />{t(label)}</dt>
+            <dd><strong style={{ '--series-color': color }}>{total ? (amount / total * 100).toFixed(1) + '%' : '—'}</strong><span>{money(amount)}</span></dd>
           </div>)}
         </dl>
       </section>}

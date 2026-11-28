@@ -1,3 +1,4 @@
+import { t } from './preferences.js'
 import { useState } from 'react'
 import { inputMoney, money, monthLabel, parseMoney, paymentBudgetMonth, validDate } from './budget.js'
 import { Modal } from './editors.jsx'
@@ -30,33 +31,32 @@ export function PaymentAllocation({ data, item, month, today, initialAmount, clo
     }
   }
 
-  return <Modal title={'Record payment for ' + item.name} close={close} busy={busy}>
+  return <Modal title={t("Record payment for ") + item.name} close={close} busy={busy}>
     <form className="editor" onSubmit={submit}>
-      <p className="muted form-note">{monthLabel(month, 'long')} budget · {money(due)} outstanding. The oldest instalment on this checklist is paid first.</p>
+      <p className="muted form-note">{monthLabel(month, 'long')} {t("budget ·")} {money(due)} {t("outstanding. The oldest instalment on this checklist is paid first.")}</p>
       <div className="form-grid">
-        <label className="field"><span>Amount paid</span><div className="money-input"><span>RM</span>
+        <label className="field"><span>{t("Amount paid")}</span><div className="money-input"><span>RM</span>
           <input inputMode="decimal" placeholder="0.00" data-initial-focus value={amountInput}
             onChange={event => setAmountInput(event.target.value)} required />
         </div></label>
-        <label className="field"><span>Date paid</span><input type="date" min="2000-01-01" max={today}
+        <label className="field"><span>{t("Date paid")}</span><input type="date" min="2000-01-01" max={today}
           value={date} onChange={event => setDate(event.target.value)} required /></label>
       </div>
-      {cashFlowMonth && <p className="muted form-note" role="status">Counts toward {monthLabel(cashFlowMonth, 'long')} cash flow.
-        {amount > 0 && !exceedsBalance && <> {money(due - amount)} remains after this payment.</>}</p>}
+      {cashFlowMonth && <p className="muted form-note" role="status">{t("Counts toward")} {monthLabel(cashFlowMonth, 'long')} {t("cash flow.")}{amount > 0 && !exceedsBalance && <> {money(due - amount)} {t("remains after this payment.")}</>}</p>}
       {plan.length > 0 && <div className="payment-allocation-scroll">
         <table className="payment-allocation-table">
-          <thead><tr><th scope="col">Instalment due</th><th scope="col">Apply</th><th scope="col">Remaining</th></tr></thead>
+          <thead><tr><th scope="col">{t("Instalment due")}</th><th scope="col">{t("Apply")}</th><th scope="col">{t("Remaining")}</th></tr></thead>
           <tbody>{plan.map(slice => <tr key={slice.row.key}>
             <th scope="row">{monthLabel(slice.row.dueMonth)}</th>
             <td>{money(slice.amount)}</td><td>{money(slice.remaining)}</td>
           </tr>)}</tbody>
         </table>
       </div>}
-      {(error || exceedsBalance) && <p className="form-error" role="alert">{error || 'The payment exceeds the outstanding balance.'}</p>}
+      {(error || exceedsBalance) && <p className="form-error" role="alert">{error ? t(error) : t("The payment exceeds the outstanding balance.")}</p>}
       <footer className="modal-actions"><div className="spacer" />
-        <button type="button" className="button secondary" onClick={close} disabled={busy}>Cancel</button>
+        <button type="button" className="button secondary" onClick={close} disabled={busy}>{t("Cancel")}</button>
         <button type="submit" className="button primary" disabled={busy || !amount || exceedsBalance || !dateAllowed}>
-          {busy ? 'Saving…' : 'Record payment'}
+          {busy ? t("Saving…") : t("Record payment")}
         </button>
       </footer>
     </form>

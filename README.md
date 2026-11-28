@@ -55,7 +55,7 @@ These examples use a fictional budget in the [hosted dashboard](https://dfc-budg
 
 ## Release version
 
-The sidebar uses the major and minor numbers from `version` in `package.json`. Its patch number is `buildNumber - versionStartBuild`, so Build 22 displays `v3.0.0 (Build 22)` and Build 23 displays `v3.0.1 (Build 23)`. Increment `buildNumber` for each release and keep the package version and lockfile in sync. For a new major or minor series, set `versionStartBuild` to its first build number.
+The sidebar uses the major and minor numbers from `version` in `package.json`. Its patch number is `buildNumber - versionStartBuild`. The Savings Jars release starts the 3.1 series at `v3.1.0 (Build 25)`. Increment `buildNumber` for each release in the series and keep the package version and lockfile in sync. For a new major or minor series, set `versionStartBuild` to its first build number.
 
 ## Run locally
 
@@ -84,6 +84,7 @@ See [Add Budget Map to your phone](docs/getting-started.md#add-budget-map-to-you
 - Open **Monthly Transfer** beside **This month**. From the 21st it opens the next budget month when viewing the current month. Choose **Salary received** to save the take-home income and receipt date for that budget, including paydays before the 21st.
 - Use **Record amount** in Monthly Transfer or the payment editor to apply a single payment to the oldest instalment on the checklist first. Payments for the following month's budget count there from the 21st or from an earlier salary receipt, with actual payment dates retained. Spending transfers belong to the selected budget month.
 - Use **Set opening cash** in Monthly Summary to project closing cash from a balance at the start of a specified month. Each monthly result carries into the next month. An unknown income month stops the running projection until that income is entered or the opening balance is moved.
+- Use **Savings Jars** to track money set aside for a goal by bank account. Confirm real deposits in **Monthly Transfer** and choose which jars the **Simulator** can use in a projection. [Set up a savings jar](docs/getting-started.md#set-up-a-savings-jar)
 
 ## Vercel and Supabase
 

@@ -1,3 +1,4 @@
+import { t } from './preferences.js'
 import { MonthlyBreakdownChart } from './MonthlyBreakdownChart.jsx'
 
 const categories = [
@@ -12,7 +13,7 @@ const categories = [
   { label: 'Uncategorized', color: '#bac7d4', shade: '#5f7387' },
 ]
 
-export function SpendingChart({ months, summaries, month, chooseMonth }) {
+export function SpendingChart({ months, summaries, month, chooseMonth, compact }) {
   const series = categories.filter(({ label }) => summaries.some(summary => summary.spendingByCategory.get(label) > 0))
   const entries = months.map((value, index) => ({
     month: value,
@@ -20,8 +21,8 @@ export function SpendingChart({ months, summaries, month, chooseMonth }) {
     amounts: series.map(({ label }) => summaries[index].spendingByCategory.get(label) ?? 0),
   }))
 
-  return <MonthlyBreakdownChart entries={entries} series={series} month={month} chooseMonth={chooseMonth}
-    title="Monthly spending by category" description="Shows recorded spending."
-    overallTitle="Overall spending" totalLabel="Total spending"
-    highlightsTitle="Category breakdown" emptyLabel="No spending recorded" />
+  return <MonthlyBreakdownChart entries={entries} series={series} month={month} chooseMonth={chooseMonth} compact={compact}
+    title={t("Monthly spending by category")} description={t("Shows recorded spending.")}
+    overallTitle={t("Overall spending")} totalLabel={t("Total spending")}
+    highlightsTitle={t("Category breakdown")} emptyLabel={t("No spending recorded")} />
 }
